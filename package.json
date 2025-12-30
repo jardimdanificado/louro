@@ -1,0 +1,27 @@
+{
+  "name": "louro",
+  "version": "0.7.2",
+  "description": "text processing library",
+  "main": "louro.js",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jardimdanificado/louro.git"
+  },
+  "keywords": [
+    "preprocessor",
+    "macro",
+    "pattern",
+    "eval",
+    "parser",
+    "codegen",
+    "regex",
+    "syntax",
+    "easy"
+  ],
+  "author": "jardimdanificado",
+  "bugs": {
+    "url": "https://github.com/jardimdanificado/louro/issues"
+  },
+  "homepage": "https://github.com/jardimdanificado/louro#readme"
+}
