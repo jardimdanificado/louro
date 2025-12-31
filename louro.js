@@ -195,32 +195,42 @@ export default function capture(content, pattern, symbols = { sigil: '$', open: 
             return result;
         },
 
-        filter(predicate) {
-            const filtered = matches.filter(predicate);
-            return {
-                content,
-                pattern,
-                matches: filtered,
-                count: filtered.length,
-                replace: this.replace.bind({ ...this, matches: filtered }),
-                filter: this.filter,
-                only: this.only
-            };
+        first(n = 1) {
+            return { ...this, matches: matches.slice(0, n), count: Math.min(n, matches.length) };
         },
 
-        only(n) {
-            const len = this.matches.length;
-            let idx = n >= 0 ? n : len + n;
-            if (idx < 0 || idx >= len) {
-                return {
-                    ...this,
-                    matches: []
-                };
+        last(n = 1) {
+            return { ...this, matches: matches.slice(-n), count: Math.min(n, matches.length) };
+        },
+
+        pop(n = 1) {
+            const sliced = matches.slice(0, matches.length - n);
+            return { ...this, matches: sliced, count: sliced.length };
+        },
+
+        shift(n = 1) {
+            const sliced = matches.slice(n);
+            return { ...this, matches: sliced, count: sliced.length };
+        },
+
+        remove(index, n = 1) {
+            let sliced = [];
+            for (let i = 0; i < matches.length; i++) {
+                if (i < index || i >= index + n) {
+                    sliced.push(matches[i]);
+                }
             }
-            return {
-                ...this,
-                matches: [this.matches[idx]]
-            };
+            return { ...this, matches: sliced, count: sliced.length };
+        },
+
+        // remove the match if it does not contains a specific key or key-value pair
+        where(key, value) {
+            const filtered = matches.filter(m =>
+                value !== undefined
+                    ? m.captures[key] === value
+                    : key in m.captures
+            );
+            return { ...this, matches: filtered, count: filtered.length };
         }
     };
 }
