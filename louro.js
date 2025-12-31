@@ -141,7 +141,7 @@ function unescapeDelim(s) {
     return r;
 }
 
-export function capture(content, pattern, symbols = { sigil: '$', open: '{', close: '}' }) {
+export default function capture(content, pattern, symbols = { sigil: '$', open: '{', close: '}' }) {
     const tokens = parsePattern(symbols, pattern);
     const matches = [];
 

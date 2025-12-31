@@ -1,6 +1,6 @@
 {
   "name": "louro",
-  "version": "0.7.2",
+  "version": "0.0.2",
   "description": "text processing library",
   "main": "louro.js",
   "type": "module",
@@ -10,14 +10,10 @@
   },
   "keywords": [
     "preprocessor",
-    "macro",
+	  "text",
     "pattern",
-    "eval",
-    "parser",
-    "codegen",
     "regex",
-    "syntax",
-    "easy"
+    "syntax"
   ],
   "author": "jardimdanificado",
   "bugs": {
