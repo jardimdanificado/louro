@@ -1,0 +1,8 @@
+*.o
+*.a
+*.so
+tests/run_tests
+examples/01_basic
+examples/02_variables
+*.exe
+.vscode/
