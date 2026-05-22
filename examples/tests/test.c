@@ -156,7 +156,7 @@ void test_stress() {
     // Function arguments parsed as separate expression streams
     LouroVariable funcs[] = {
         LOURO_STD,
-        LOURO_PURE("abs", fabs)
+        LOURO_PURE("abs", fabs, 1)
     };
     int count = sizeof(funcs) / sizeof(funcs[0]);
     RUN_TEST_VARS("Function argument expressions", "10 + abs(-5 * 2) * 2", 30.0, funcs, count);

@@ -1,53 +1,61 @@
 # Louro
 
-Louro is a tiny Domain Specific Language creation library.
-
-Louro is a heavily modified fork of *TinyExpr*.
-
-## Features
-
-- **Header-Only:** Just `#include "louro.h"` and you are ready to go. No Makefiles, no linking.
-- **Dependency Free:** You inject the functions you need.
+Louro is a heavily modified fork of *TinyExpr* designed to be a tiny Domain Specific Language creation library. You must manually register all operators and functions that you want the language to recognize. For convenience, standard math libraries are provided in `libs/`.
 
 ## Usage
-
-Louro is designed to be a "naked" engine. You must manually register all operators and functions that you want the language to recognize.
 
 ```c
 #include "louro.h"
 #include "libs/louro_std.h"
-#include "libs/louro_math.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
-double x = 0.0;
+// Example custom functions
+double my_rand() { return (double)(rand() % 100); }
+double my_factorial(double a) { return a <= 1 ? 1 : a * my_factorial(a - 1); }
+double logical_not(double a) { return a == 0.0 ? 1.0 : 0.0; }
 
-// Register the mathematical operators, standard functions, and our variable (x)
-LouroVariable scope[] = {
-    LOURO_STD,
-    LOURO_MATH,
-    LOURO_VAR("x", &x)
-};
+int main() {
+    double health = 100.0;
 
-int err;
-int count = sizeof(scope) / sizeof(scope[0]);
-LouroExpression *expr = louro_compile("sin(x) * 10", scope, count, &err);
+    // Register one element of each supported type
+    LouroVariable scope[] = {
+        LOURO_STD,                                // 1. Built-in standard library
+        LOURO_VAR("health", &health),             // 2. Bound variable (Pointer)
+        LOURO_PURE("abs", fabs, 1),               // 3. Pure Function (Optimizable)
+        LOURO_IMPURE("rand", my_rand, 0),         // 4. Impure Function (Evaluated at runtime)
+        LOURO_OP("=>", lr_cmp_ge, 20),            // 5. Infix Operator
+        LOURO_OP_RIGHT("**", pow, 50),            // 6. Right-associative Operator
+        LOURO_OP_PREFIX("NOT ", logical_not, 60), // 7. Prefix Operator
+        LOURO_OP_POSTFIX("!", my_factorial, 70)   // 8. Postfix Operator
+    };
 
-for (int i = 0; i < 1000000; i++) {
-    x = (double)i;
-    double result = louro_evaluate(expr);
+    int err;
+    int count = sizeof(scope) / sizeof(scope[0]);
+    LouroExpression *expr = louro_compile("NOT (health => 50) + rand() * 2**3 + 5!", scope, count, &err);
+
+    if (expr) {
+        double result = louro_evaluate(expr);
+        printf("Result: %f\n", result);
+        louro_free(expr);
+    } else {
+        printf("Syntax Error at character %d\n", err);
+    }
+
+    return 0;
 }
-
-louro_free(expr);
 ```
 
-## Built-in Macros (C11)
+## Built-in Macros
 
-Louro uses `_Generic` under the hood to automatically detect the number of arguments of your C functions, stripping away the need for verbose casting and flags.
-
-- **`LOURO_PURE("name", function)`**: Injects a pure function (e.g., `sin`, `sqrt`). Pure functions with constant arguments will be pre-calculated during compilation to save CPU cycles.
-- **`LOURO_IMPURE("name", function)`**: Injects an impure function (e.g., `rand`). Impure functions are never pre-calculated and will always execute at runtime.
+- **`LOURO_PURE("name", function, arity)`**: Injects a pure function (e.g., `sin`, `sqrt`). Pure functions with constant arguments will be pre-calculated during compilation to save CPU cycles.
+- **`LOURO_IMPURE("name", function, arity)`**: Injects an impure function (e.g., `rand`). Impure functions are never pre-calculated and will always execute at runtime.
 - **`LOURO_VAR("name", pointer)`**: Injects a bound variable using a pointer to a `double`.
-- **`LOURO_OP("symbol", function, precedence)`**: Registers a custom dynamic operator (e.g., `+`, `mod`, `=>`) with a specific precedence (left-associative).
+- **`LOURO_OP("symbol", function, precedence)`**: Registers a custom dynamic operator (e.g., `+`, `mod`, `=>`) with a specific precedence (left-associative, infix).
 - **`LOURO_OP_RIGHT("symbol", function, precedence)`**: Registers a right-associative custom dynamic operator (e.g., `**`, `^`).
+- **`LOURO_OP_PREFIX("symbol", function, precedence)`**: Registers a prefix unary operator (e.g., `!x`, `-x`).
+- **`LOURO_OP_POSTFIX("symbol", function, precedence)`**: Registers a postfix unary operator (e.g., `x!`).
 
 ## License
 Louro is provided under the Zlib license. See the top of `louro.h` for more details.

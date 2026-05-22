@@ -82,22 +82,8 @@ typedef struct LouroVariable {
 } LouroVariable;
 #define LOURO_VAR(name, ptr) {name, (const void*)(ptr), LOURO_VARIABLE, 0}
 
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-    /* Helper macro to automatically detect function arity (C11 only) */
-    #define LOURO_ARITY(func) _Generic((func), \
-        double (*)(void): LOURO_FUNCTION0, \
-        double (*)(double): LOURO_FUNCTION1, \
-        double (*)(double, double): LOURO_FUNCTION2, \
-        double (*)(double, double, double): LOURO_FUNCTION3, \
-        double (*)(double, double, double, double): LOURO_FUNCTION4, \
-        double (*)(double, double, double, double, double): LOURO_FUNCTION5, \
-        double (*)(double, double, double, double, double, double): LOURO_FUNCTION6, \
-        double (*)(double, double, double, double, double, double, double): LOURO_FUNCTION7 \
-    )
-
-    #define LOURO_PURE(name, func)   {name, (const void*)(func), LOURO_ARITY(func) | LOURO_FLAG_PURE, 0}
-    #define LOURO_IMPURE(name, func) {name, (const void*)(func), LOURO_ARITY(func), 0}
-#endif
+#define LOURO_PURE(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, 0}
+#define LOURO_IMPURE(name, func, arity) {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), 0}
 
 #define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), 0}
 #define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), 0}

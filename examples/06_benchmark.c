@@ -41,9 +41,9 @@ int main() {
     int err;
     LouroVariable vars[] = {
         LOURO_STD,
-        LOURO_PURE("sqrt", sqrt),
-        LOURO_PURE("sin", sin),
-        LOURO_PURE("cos", cos),
+        LOURO_PURE("sqrt", sqrt, 1),
+        LOURO_PURE("sin", sin, 1),
+        LOURO_PURE("cos", cos, 1),
         LOURO_VAR("x", &x),
         LOURO_VAR("y", &y)
     };

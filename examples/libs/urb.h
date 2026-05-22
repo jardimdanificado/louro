@@ -169,18 +169,18 @@ static inline double urb_len(double _list)
 }
 
 #define LOURO_URB \
-    LOURO_IMPURE("new", urb_new), \
-    LOURO_IMPURE("free", urb_free), \
-    LOURO_IMPURE("double", urb_double), \
-    LOURO_IMPURE("half", urb_half), \
-    LOURO_IMPURE("push", urb_push), \
-    LOURO_IMPURE("unshift", urb_unshift), \
-    LOURO_IMPURE("insert", urb_insert), \
-    LOURO_IMPURE("set", urb_set), \
-    LOURO_IMPURE("pop", urb_pop), \
-    LOURO_IMPURE("shift", urb_shift), \
-    LOURO_IMPURE("remove", urb_remove), \
-    LOURO_IMPURE("get", urb_get), \
-    LOURO_IMPURE("len", urb_len)
+    LOURO_IMPURE("new", urb_new, 1), \
+    LOURO_IMPURE("free", urb_free, 1), \
+    LOURO_IMPURE("double", urb_double, 1), \
+    LOURO_IMPURE("half", urb_half, 1), \
+    LOURO_IMPURE("push", urb_push, 2), \
+    LOURO_IMPURE("unshift", urb_unshift, 2), \
+    LOURO_IMPURE("insert", urb_insert, 3), \
+    LOURO_IMPURE("set", urb_set, 3), \
+    LOURO_IMPURE("pop", urb_pop, 1), \
+    LOURO_IMPURE("shift", urb_shift, 1), \
+    LOURO_IMPURE("remove", urb_remove, 2), \
+    LOURO_IMPURE("get", urb_get, 2), \
+    LOURO_IMPURE("len", urb_len, 1)
     
 #endif // ifndef URB_H macro

@@ -18,7 +18,7 @@ int main() {
     LouroVariable scope1[] = {
         LOURO_VAR("health", &health),
         LOURO_VAR("damage", &damage),
-        LOURO_PURE("sqrt", sqrt),
+        LOURO_PURE("sqrt", sqrt, 1),
         LOURO_STD
     };
     int scope1_count = sizeof(scope1) / sizeof(scope1[0]);
