@@ -1,6 +1,7 @@
 #include "../../louro.h"
 #include "../libs/louro_std.h"
 #include "../libs/louro_math.h"
+#include "../libs/urb.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -161,6 +162,35 @@ void test_stress() {
     int count = sizeof(funcs) / sizeof(funcs[0]);
     RUN_TEST_VARS("Function argument expressions", "10 + abs(-5 * 2) * 2", 30.0, funcs, count);
 }
+void test_urb() {
+    printf("\n--- Urb Lists and Typed Views Tests ---\n");
+    double my_list = urb_new(2);
+    double mem = urb_new(2);
+    
+    LouroVariable funcs[] = {
+        LOURO_STD,
+        LOURO_URB,
+        LOURO_VAR("my_list", &my_list),
+        LOURO_VAR("mem", &mem)
+    };
+    int count = sizeof(funcs) / sizeof(funcs[0]);
+    
+    // Testing push, pop, and length
+    louro_free(louro_compile("push(my_list, 42.0)", funcs, count, NULL)); // Evaluate via side effects? No, louro_compile doesn't execute.
+    // Wait, we need to evaluate them.
+    LouroExpression *e1 = louro_compile("push(my_list, 42.0)", funcs, count, NULL); louro_evaluate(e1); louro_free(e1);
+    LouroExpression *e2 = louro_compile("push(my_list, 10.0)", funcs, count, NULL); louro_evaluate(e2); louro_free(e2);
+    RUN_TEST_VARS("List push/pop", "pop(my_list)", 10.0, funcs, count);
+    
+    // Testing typed views (i8)
+    LouroExpression *e3 = louro_compile("push(mem, 0)", funcs, count, NULL); louro_evaluate(e3); louro_free(e3);
+    LouroExpression *e4 = louro_compile("set_i8(mem, 0, -128)", funcs, count, NULL); louro_evaluate(e4); louro_free(e4);
+    RUN_TEST_VARS("Typed view i8", "get_i8(mem, 0)", -128.0, funcs, count);
+    
+    // Testing typed views (u32)
+    LouroExpression *e5 = louro_compile("set_u32(mem, 0, 4000000000)", funcs, count, NULL); louro_evaluate(e5); louro_free(e5);
+    RUN_TEST_VARS("Typed view u32", "get_u32(mem, 0)", 4000000000.0, funcs, count);
+}
 
 int main() {
     test_basic_math();
@@ -168,6 +198,7 @@ int main() {
     test_comparisons();
     test_variables();
     test_stress();
+    test_urb();
     
     printf("\nAll tests finished.\n");
     return 0;

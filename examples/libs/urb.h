@@ -113,6 +113,61 @@ static inline double urb_set(double _list, double i, double value)
     return _list;
 }
 
+static inline double urb_pop(double _list)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    if (list->size <= 0)
+        return 0.0;
+    return list->data[--list->size];
+}
+
+static inline double urb_shift(double _list)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    if (list->size <= 0)
+        return 0.0;
+    double ret = list->data[0];
+    memmove(&(list->data[0]), &(list->data[1]), (size_t)(list->size - 1) * 8); 
+    list->size--; 
+    return ret;
+}
+
+static inline double urb_remove(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double original_index = i;
+    
+    // index cycle
+    i = (i < 0) ? (list->size + i) : i;
+
+    if (list->size <= 0)
+        return 0.0;
+    else if(i >= list->size || i < 0)
+        return 0.0;
+    
+    double ret = list->data[(int)i];
+    double elements_to_move = list->size - i - 1;
+    memmove(&(list->data[(int)i]), &(list->data[(int)i + 1]), elements_to_move * 8); 
+    list->size--; 
+    return ret;
+}
+
+static inline double urb_get(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    i = (i < 0) ? (list->size + i) : i;
+    if (list->size <= 0 || i >= list->size || i < 0)
+        return 0.0;
+    return list->data[(int)i];
+}
+
+static inline double urb_len(double _list)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    if(!list) return 0.0;
+    return (double)list->size;
+}
+
 static inline double urb_get_i8(double _list, double i)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
