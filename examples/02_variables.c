@@ -1,4 +1,5 @@
 #include "../louro.h"
+#include "libs/louro_std.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -17,11 +18,13 @@ int main() {
     LouroVariable scope1[] = {
         LOURO_VAR("health", &health),
         LOURO_VAR("damage", &damage),
-        LOURO_PURE("sqrt", sqrt)
+        LOURO_PURE("sqrt", sqrt),
+        LOURO_STD
     };
+    int scope1_count = sizeof(scope1) / sizeof(scope1[0]);
     
     // Evaluate a complex expression using the variables and functions
-    LouroExpression *expr1 = louro_compile("sqrt(health) + damage * 2", scope1, 3, &err);
+    LouroExpression *expr1 = louro_compile("sqrt(health) + damage * 2", scope1, scope1_count, &err);
     double result = 0;
     if (expr1) {
         result = louro_evaluate(expr1);
@@ -34,10 +37,12 @@ int main() {
     // and re-evaluate without needing to parse the expression again.
     
     LouroVariable scope2[] = {
+        LOURO_STD,
         LOURO_VAR("health", &health)
     };
+    int scope2_count = sizeof(scope2) / sizeof(scope2[0]);
     
-    LouroExpression *expr = louro_compile("health - 10", scope2, 1, &err);
+    LouroExpression *expr = louro_compile("health - 10", scope2, scope2_count, &err);
     if (expr) {
         printf("\nSimulating damage loop:\n");
         for (int i = 0; i < 3; i++) {

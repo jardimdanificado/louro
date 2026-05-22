@@ -1,11 +1,26 @@
-#include "../louro.h"
+#include "../../louro.h"
+#include "../libs/louro_std.h"
+#include "../libs/louro_math.h"
 #include <stdio.h>
 #include <math.h>
+
+static const LouroVariable LOURO_STANDARD_OPS[] = {
+    LOURO_STD
+};
+static const int LOURO_STANDARD_OPS_COUNT = sizeof(LOURO_STANDARD_OPS) / sizeof(LOURO_STANDARD_OPS[0]);
+
+static double test_interpret(const char *expr, int *err) {
+    LouroExpression *n = louro_compile(expr, LOURO_STANDARD_OPS, LOURO_STANDARD_OPS_COUNT, err);
+    if (!n) return NAN;
+    double ret = louro_evaluate(n);
+    louro_free(n);
+    return ret;
+}
 
 #define RUN_TEST(name, expr, expected) \
     do { \
         int err; \
-        double result = louro_interpret((expr), &err); \
+        double result = test_interpret((expr), &err); \
         if (err != 0) { \
             printf("[FAIL] %s: '%s' -> Parse error at %d\n", (name), (expr), err); \
         } else if (fabs(result - (expected)) > 1e-7) { \
@@ -32,7 +47,6 @@
         } \
     } while (0)
 
-static double my_pi(void) {return 3.14159265358979323846;}
 
 void test_basic_math() {
     printf("--- Basic Math Tests ---\n");
@@ -50,12 +64,8 @@ void test_functions() {
     printf("\n--- Function Tests (Injected via variables) ---\n");
     
     LouroVariable funcs[] = {
-        LOURO_PURE("abs", fabs),
-        LOURO_PURE("atan2", atan2),
-        LOURO_PURE("cos", cos),
-        LOURO_PURE("pi", my_pi),
-        LOURO_PURE("sin", sin),
-        LOURO_PURE("sqrt", sqrt)
+        LOURO_STD,
+        LOURO_MATH
     };
     int count = sizeof(funcs) / sizeof(funcs[0]);
 
@@ -87,12 +97,13 @@ void test_variables() {
     printf("\n--- Variable Tests ---\n");
     double x = 3, y = 4;
     LouroVariable vars[] = {
+        LOURO_STD,
         LOURO_VAR("x", &x),
         LOURO_VAR("y", &y)
     };
     int err;
 
-    LouroExpression *expr = louro_compile("x^2 + y^2", vars, 2, &err);
+    LouroExpression *expr = louro_compile("x^2 + y^2", vars, sizeof(vars)/sizeof(vars[0]), &err);
     if (!expr) {
         printf("[FAIL] Variable Compilation: Parse error at %d\n", err);
         return;
@@ -116,11 +127,47 @@ void test_variables() {
     louro_free(expr);
 }
 
+void test_stress() {
+    printf("\n--- Stress & Edge Case Tests ---\n");
+    
+    // Right associativity: 2^3^2 = 2^(3^2) = 2^9 = 512
+    RUN_TEST("Right associativity", "2^3^2", 512.0);
+    
+    // Deep nesting (tests parser stack limits, though Pratt parser uses C call stack)
+    RUN_TEST("Deep nesting", "(((((((((10)))))))))", 10.0);
+    
+    // Consecutive prefix operators
+    RUN_TEST("Consecutive prefixes", "---5", -5.0);
+    RUN_TEST("Consecutive mixed prefixes", "-(-5)", 5.0);
+    
+    // Extreme Precedence Mixing: 1 + (2 * (3^4)) - (5 / 2) = 1 + 162 - 2.5 = 160.5
+    RUN_TEST("Heavy precedence", "1+2*3^4-5/2", 160.5); 
+    
+    // Decimal anomalies (no leading zero)
+    RUN_TEST("Decimals without leading zero", ".5 + .25", 0.75);
+    
+    // Long chain of the same precedence
+    RUN_TEST("Long expression", "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1", 20.0);
+    
+    // Math mixed with logical boolean returns (Louro booleans return 1.0 or 0.0)
+    // (10 > 5) evaluates to 1.0. (2 == 3) evaluates to 0.0. 
+    RUN_TEST("Math with booleans", "(10 > 5) * 100 + (2 == 3) * 50", 100.0);
+    
+    // Function arguments parsed as separate expression streams
+    LouroVariable funcs[] = {
+        LOURO_STD,
+        LOURO_PURE("abs", fabs)
+    };
+    int count = sizeof(funcs) / sizeof(funcs[0]);
+    RUN_TEST_VARS("Function argument expressions", "10 + abs(-5 * 2) * 2", 30.0, funcs, count);
+}
+
 int main() {
     test_basic_math();
     test_functions();
     test_comparisons();
     test_variables();
+    test_stress();
     
     printf("\nAll tests finished.\n");
     return 0;

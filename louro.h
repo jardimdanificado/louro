@@ -31,11 +31,10 @@
 #define LOURO_H
 
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <limits.h>
+#include <math.h>
 
 #ifndef NAN
 #define NAN (0.0/0.0)
@@ -65,7 +64,13 @@ enum {
     LOURO_CLOSURE0 = 16, LOURO_CLOSURE1, LOURO_CLOSURE2, LOURO_CLOSURE3,
     LOURO_CLOSURE4, LOURO_CLOSURE5, LOURO_CLOSURE6, LOURO_CLOSURE7,
 
-    LOURO_FLAG_PURE = 32
+    LOURO_FLAG_PURE = 32,
+    LOURO_OPERATOR = 64,
+    LOURO_FLAG_RIGHT_ASSOC = 128,
+    
+    LOURO_FLAG_INFIX = 256,
+    LOURO_FLAG_PREFIX = 512,
+    LOURO_FLAG_POSTFIX = 1024
 };
 
 /* Builtin function descriptor (used internally; no variable binding). */
@@ -94,12 +99,10 @@ typedef struct LouroVariable {
     #define LOURO_IMPURE(name, func) {name, (const void*)(func), LOURO_ARITY(func), 0}
 #endif
 
-
-/* Parses the input expression, evaluates it, and frees it. */
-/* Returns NaN on error. */
-/* Comparison operators: <, >, <=, >=, ==, != return 1.0 (true) or 0.0 (false). */
-static inline double louro_interpret(const char *expression, int *error);
-
+#define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), 0}
+#define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), 0}
+#define LOURO_OP_PREFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), 0}
+#define LOURO_OP_POSTFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), 0}
 
 /* Parses the input expression. */
 /* Returns NULL on error. */
@@ -107,9 +110,6 @@ static inline LouroExpression *louro_compile(const char *expression, const Louro
 
 /* Evaluates the expression. */
 static inline double louro_evaluate(const LouroExpression *n);
-
-/* Prints debugging information on the syntax tree. */
-static inline void louro_print(const LouroExpression *n);
 
 /* Frees the expression. */
 /* This is safe to call on NULL pointers. */
@@ -126,7 +126,7 @@ typedef double (*lr_fun2)(double, double);
 
 enum {
     TOK_NULL = LOURO_CLOSURE7+1, TOK_ERROR, TOK_END, TOK_SEP,
-    TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_INFIX
+    TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR
 };
 
 
@@ -142,6 +142,10 @@ typedef struct state {
 
     const LouroVariable *lookup;
     int lookup_len;
+    
+    int expecting_operator;
+    int op_precedence;
+    int op_flags;
 } state;
 
 
@@ -152,7 +156,7 @@ typedef struct state {
 #define IS_CLOSURE(TYPE) (((TYPE) & LOURO_CLOSURE0) != 0)
 #define ARITY(TYPE) ( ((TYPE) & (LOURO_FUNCTION0 | LOURO_CLOSURE0)) ? ((TYPE) & 0x00000007) : 0 )
 #define NEW_EXPR(type, ...) new_expr((type), (const LouroExpression*[]){__VA_ARGS__})
-#define CHECK_NULL(ptr, ...) if ((ptr) == NULL) { __VA_ARGS__; return NULL; }
+#define CHECK_NULL(ptr, ...) if ((ptr) == NULL) { __VA_ARGS__;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
 
 static inline LouroExpression *new_expr(const int type, const LouroExpression *parameters[]) {
     const int arity = ARITY(type);
@@ -194,8 +198,6 @@ static inline void louro_free(LouroExpression *n) {
 
 /* Built-in functions and their declarations for TinyExpr */
 
-
-
 static inline const LouroVariable *find_lookup(const state *s, const char *name, int len) {
     int iters;
     const LouroVariable *var;
@@ -209,27 +211,10 @@ static inline const LouroVariable *find_lookup(const state *s, const char *name,
     return 0;
 }
 
-static inline double lr_add(double a, double b) {return a + b;}
-static inline double lr_sub(double a, double b) {return a - b;}
-static inline double lr_mul(double a, double b) {return a * b;}
-static inline double lr_divide(double a, double b) {return a / b;}
-static inline double lr_negate(double a) {return -a;}
-static inline double lr_comma(double a, double b) {(void)a; return b;}
-
-/* Comparison operators — return 1.0 for true, 0.0 for false */
-static inline double lr_cmp_lt(double a, double b)  {return a <  b ? 1.0 : 0.0;}
-static inline double lr_cmp_gt(double a, double b)  {return a >  b ? 1.0 : 0.0;}
-static inline double lr_cmp_le(double a, double b)  {return a <= b ? 1.0 : 0.0;}
-static inline double lr_cmp_ge(double a, double b)  {return a >= b ? 1.0 : 0.0;}
-static inline double lr_cmp_eq(double a, double b)  {return a == b ? 1.0 : 0.0;}
-static inline double lr_cmp_ne(double a, double b)  {return a != b ? 1.0 : 0.0;}
-
-
 static inline void next_token(state *s) {
     s->type = TOK_NULL;
 
     do {
-
         if (!*s->next){
             s->type = TOK_END;
             return;
@@ -239,125 +224,128 @@ static inline void next_token(state *s) {
         if ((s->next[0] >= '0' && s->next[0] <= '9') || s->next[0] == '.') {
             s->value = strtod(s->next, (char**)&s->next);
             s->type = TOK_NUMBER;
-        } else {
-            /* Look for a builtin function call. */
-            if (isalpha(s->next[0])) {
-                const char *start;
-                start = s->next;
-                while (isalpha(s->next[0]) || isdigit(s->next[0]) || (s->next[0] == '_')) s->next++;
+            return;
+        }
 
-                const LouroVariable *var = find_lookup(s, start, s->next - start);
-
-                if (!var) {
-                    s->type = TOK_ERROR;
-                } else {
-                    switch(TYPE_MASK(var->type))
-                    {
-                        case LOURO_VARIABLE:
-                            s->type = TOK_VARIABLE;
-                            s->bound = (const double*)var->address;
-                            break;
-
-                        case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3:         /* Falls through. */
-                        case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:         /* Falls through. */
-                            s->context = var->context;                                                  /* Falls through. */
-
-                        case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3:     /* Falls through. */
-                        case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:     /* Falls through. */
-                            s->type = var->type;
-                            s->function = var->address;
-                            break;
+        /* 1. First, check if there's a matching operator or variable in the lookup table.
+           We match the longest possible prefix to support custom operators like '==' or '=>'.
+        */
+        const LouroVariable *best_match = NULL;
+        int best_match_len = 0;
+        
+        if (s->lookup) {
+            for (int i = 0; i < s->lookup_len; ++i) {
+                const LouroVariable *var = &s->lookup[i];
+                int len = strlen(var->name);
+                if (strncmp(s->next, var->name, len) == 0) {
+                    // Make sure it's a full word match if it's alphanumeric
+                    if (isalpha(var->name[0])) {
+                        if (isalnum(s->next[len]) || s->next[len] == '_') continue;
                     }
-                }
+                    
+                    if (var->type & LOURO_OPERATOR) {
+                        if (s->expecting_operator) {
+                            if (!(var->type & (LOURO_FLAG_INFIX | LOURO_FLAG_POSTFIX))) continue;
+                        } else {
+                            if (!(var->type & LOURO_FLAG_PREFIX)) continue;
+                        }
+                    }
 
-            } else {
-                /* Look for an operator or special character. */
-                switch (s->next[0]) {
-                    case '+': s->type = TOK_INFIX; s->function = (const void*)lr_add;    s->next++; break;
-                    case '-': s->type = TOK_INFIX; s->function = (const void*)lr_sub;    s->next++; break;
-                    case '*': s->type = TOK_INFIX; s->function = (const void*)lr_mul;    s->next++; break;
-                    case '/': s->type = TOK_INFIX; s->function = (const void*)lr_divide; s->next++; break;
-                    case '^': s->type = TOK_INFIX; s->function = (const void*)pow;    s->next++; break;
-                    case '%': s->type = TOK_INFIX; s->function = (const void*)fmod;   s->next++; break;
-                    case '(': s->type = TOK_OPEN;  s->next++; break;
-                    case ')': s->type = TOK_CLOSE; s->next++; break;
-                    case ',': s->type = TOK_SEP;   s->next++; break;
-                    case '<':
-                        if (s->next[1] == '=') {
-                            s->type = TOK_INFIX; s->function = (const void*)lr_cmp_le; s->next += 2;
-                        } else {
-                            s->type = TOK_INFIX; s->function = (const void*)lr_cmp_lt; s->next++;
-                        }
-                        break;
-                    case '>':
-                        if (s->next[1] == '=') {
-                            s->type = TOK_INFIX; s->function = (const void*)lr_cmp_ge; s->next += 2;
-                        } else {
-                            s->type = TOK_INFIX; s->function = (const void*)lr_cmp_gt; s->next++;
-                        }
-                        break;
-                    case '=':
-                        if (s->next[1] == '=') {
-                            s->type = TOK_INFIX; s->function = (const void*)lr_cmp_eq; s->next += 2;
-                        } else {
-                            s->type = TOK_ERROR; s->next++;
-                        }
-                        break;
-                    case '!':
-                        if (s->next[1] == '=') {
-                            s->type = TOK_INFIX; s->function = (const void*)lr_cmp_ne; s->next += 2;
-                        } else {
-                            s->type = TOK_ERROR; s->next++;
-                        }
-                        break;
-                    case ' ': case '\t': case '\n': case '\r': s->next++; break;
-                    default: s->type = TOK_ERROR; s->next++; break;
+                    if (len > best_match_len) {
+                        best_match = var;
+                        best_match_len = len;
+                    }
                 }
             }
         }
+
+        if (best_match) {
+            s->next += best_match_len;
+            if (best_match->type & LOURO_OPERATOR) {
+                s->type = TOK_OPERATOR;
+                s->function = best_match->address;
+                s->op_precedence = (best_match->type >> 12);
+                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX);
+                return;
+            } else {
+                switch(TYPE_MASK(best_match->type)) {
+                    case LOURO_VARIABLE:
+                        s->type = TOK_VARIABLE;
+                        s->bound = (const double*)best_match->address;
+                        return;
+                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3:
+                    case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
+                        s->context = best_match->context;
+                    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3:
+                    case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
+                        s->type = best_match->type;
+                        s->function = best_match->address;
+                        return;
+                }
+            }
+        }
+
+        /* 2. Fallback to builtin structural characters if no custom operator matched. */
+        int matched = 1;
+        switch (s->next[0]) {
+            case '(': s->type = TOK_OPEN;  s->next++; break;
+            case ')': s->type = TOK_CLOSE; s->next++; break;
+            case ',': s->type = TOK_SEP;   s->function = 0; s->op_precedence = 10; s->op_flags = 0; s->next++; break;
+            case ' ': case '\t': case '\n': case '\r': s->next++; matched = 0; break;
+            default: 
+                // If it's an unrecognized alphanumeric, it's an error (e.g. undeclared variable)
+                if (isalpha(s->next[0])) {
+                    while (isalpha(s->next[0]) || isdigit(s->next[0]) || (s->next[0] == '_')) s->next++;
+                } else {
+                    s->next++; 
+                }
+                s->type = TOK_ERROR; 
+                break;
+        }
+        if (matched && s->type != TOK_NULL) return;
+        
     } while (s->type == TOK_NULL);
 }
 
-
-static inline LouroExpression *list(state *s);
-static inline LouroExpression *expr(state *s);
-static inline LouroExpression *power(state *s);
+static inline LouroExpression *parse_expr_dynamic(state *s, int precedence);
 
 static inline LouroExpression *base(state *s) {
-    /* <base>      =    <constant> | <variable> | <function-0> {"(" ")"} | <function-1> <power> | <function-X> "(" <expr> {"," <expr>} ")" | "(" <list> ")" */
     LouroExpression *ret;
     int arity;
 
     switch (TYPE_MASK(s->type)) {
         case TOK_NUMBER:
             ret = new_expr(LOURO_CONSTANT, 0);
-            CHECK_NULL(ret);
-
+            if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->value = s->value;
+            s->expecting_operator = 1;
             next_token(s);
             break;
 
         case TOK_VARIABLE:
             ret = new_expr(LOURO_VARIABLE, 0);
-            CHECK_NULL(ret);
-
+            if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->bound = s->bound;
+            s->expecting_operator = 1;
             next_token(s);
             break;
 
         case LOURO_FUNCTION0:
         case LOURO_CLOSURE0:
             ret = new_expr(s->type, 0);
-            CHECK_NULL(ret);
-
+            if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = s->function;
             if (IS_CLOSURE(s->type)) ret->parameters[0] = s->context;
+            
+            s->expecting_operator = 1;
             next_token(s);
             if (s->type == TOK_OPEN) {
+                s->expecting_operator = 0;
                 next_token(s);
                 if (s->type != TOK_CLOSE) {
                     s->type = TOK_ERROR;
                 } else {
+                    s->expecting_operator = 1;
                     next_token(s);
                 }
             }
@@ -366,13 +354,15 @@ static inline LouroExpression *base(state *s) {
         case LOURO_FUNCTION1:
         case LOURO_CLOSURE1:
             ret = new_expr(s->type, 0);
-            CHECK_NULL(ret);
-
+            if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = s->function;
             if (IS_CLOSURE(s->type)) ret->parameters[1] = s->context;
+            
+            s->expecting_operator = 0;
             next_token(s);
-            ret->parameters[0] = power(s);
-            CHECK_NULL(ret->parameters[0], louro_free(ret));
+            
+            ret->parameters[0] = parse_expr_dynamic(s, 60);
+            if(!ret->parameters[0]) { louro_free(ret);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             break;
 
         case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4:
@@ -380,12 +370,12 @@ static inline LouroExpression *base(state *s) {
         case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4:
         case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
             arity = ARITY(s->type);
-
             ret = new_expr(s->type, 0);
-            CHECK_NULL(ret);
-
+            if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = s->function;
             if (IS_CLOSURE(s->type)) ret->parameters[arity] = s->context;
+            
+            s->expecting_operator = 0; // The next token must be '(' (not an operator, structural, fetched in primary mode)
             next_token(s);
 
             if (s->type != TOK_OPEN) {
@@ -393,9 +383,10 @@ static inline LouroExpression *base(state *s) {
             } else {
                 int i;
                 for(i = 0; i < arity; i++) {
+                    s->expecting_operator = 0;
                     next_token(s);
-                    ret->parameters[i] = expr(s);
-                    CHECK_NULL(ret->parameters[i], louro_free(ret));
+                    ret->parameters[i] = parse_expr_dynamic(s, 0); 
+                    if(!ret->parameters[i]) { louro_free(ret);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
 
                     if(s->type != TOK_SEP) {
                         break;
@@ -404,231 +395,104 @@ static inline LouroExpression *base(state *s) {
                 if(s->type != TOK_CLOSE || i != arity - 1) {
                     s->type = TOK_ERROR;
                 } else {
+                    s->expecting_operator = 1;
                     next_token(s);
                 }
             }
-
             break;
 
         case TOK_OPEN:
+            s->expecting_operator = 0;
             next_token(s);
-            ret = list(s);
-            CHECK_NULL(ret);
+            ret = parse_expr_dynamic(s, 0);
+            if(!ret)  { printf("NULL at %d\n", __LINE__); return NULL; };
 
             if (s->type != TOK_CLOSE) {
                 s->type = TOK_ERROR;
             } else {
+                s->expecting_operator = 1;
                 next_token(s);
             }
             break;
 
         default:
             ret = new_expr(0, 0);
-            CHECK_NULL(ret);
-
+            if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             s->type = TOK_ERROR;
-            ret->value = NAN;
+            ret->value = NAN; // using NAN requires math.h but louro evaluate returns NAN anyway. We'll use 0.0/0.0 if NAN isn't available? Wait, louro.h doesn't include math.h at the top, but it uses fmod etc. It's fine.
             break;
     }
 
     return ret;
 }
 
-
-static inline LouroExpression *power(state *s) {
-    /* <power>     =    {("-" | "+")} <base> */
-    int sign = 1;
-    while (s->type == TOK_INFIX && (s->function == lr_add || s->function == lr_sub)) {
-        if (s->function == lr_sub) sign = -sign;
+static inline LouroExpression *parse_prefix(state *s) {
+    if (s->type == TOK_OPERATOR && (s->op_flags & LOURO_FLAG_PREFIX)) {
+        const void *func = s->function;
+        int prec = s->op_precedence;
+        
+        s->expecting_operator = 0;
         next_token(s);
+        
+        LouroExpression *operand = parse_expr_dynamic(s, prec);
+        if (!operand)  { printf("NULL at %d\n", __LINE__); return NULL; };
+        
+        LouroExpression *ret = new_expr(LOURO_FUNCTION1 | LOURO_FLAG_PURE, 0);
+        if (!ret) { louro_free(operand);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+        ret->function = func;
+        ret->parameters[0] = operand;
+        return ret;
     }
-
-    LouroExpression *ret;
-
-    if (sign == 1) {
-        ret = base(s);
-    } else {
-        LouroExpression *b = base(s);
-        CHECK_NULL(b);
-
-        ret = NEW_EXPR(LOURO_FUNCTION1 | LOURO_FLAG_PURE, b);
-        CHECK_NULL(ret, louro_free(b));
-
-        ret->function = (const void*)lr_negate;
-    }
-
-    return ret;
+    return base(s);
 }
 
-#ifdef LR_POW_FROM_RIGHT
-static inline LouroExpression *factor(state *s) {
-    /* <factor>    =    <power> {"^" <power>} */
-    LouroExpression *ret = power(s);
-    CHECK_NULL(ret);
+static inline LouroExpression *parse_expr_dynamic(state *s, int current_precedence) {
+    LouroExpression *left = parse_prefix(s);
+    if (!left)  { printf("NULL at %d\n", __LINE__); return NULL; };
 
-    int neg = 0;
-
-    if (ret->type == (LOURO_FUNCTION1 | LOURO_FLAG_PURE) && ret->function == lr_negate) {
-        LouroExpression *se = ret->parameters[0];
-        free(ret);
-        ret = se;
-        neg = 1;
-    }
-
-    LouroExpression *insertion = 0;
-
-    while (s->type == TOK_INFIX && (s->function == pow)) {
-        lr_fun2 t = (lr_fun2)s->function;
-        next_token(s);
-
-        if (insertion) {
-            /* Make exponentiation go right-to-left. */
-            LouroExpression *p = power(s);
-            CHECK_NULL(p, louro_free(ret));
-
-            LouroExpression *insert = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, (LouroExpression*)insertion->parameters[1], p);
-            CHECK_NULL(insert, louro_free(p), louro_free(ret));
-
-            insert->function = (const void*)t;
-            insertion->parameters[1] = insert;
-            insertion = insert;
-        } else {
-            LouroExpression *p = power(s);
-            CHECK_NULL(p, louro_free(ret));
-
-            LouroExpression *prev = ret;
-            ret = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, ret, p);
-            CHECK_NULL(ret, louro_free(p), louro_free(prev));
-
-            ret->function = (const void*)t;
-            insertion = ret;
+    while (s->type == TOK_OPERATOR) {
+        if (s->op_flags & LOURO_FLAG_POSTFIX) {
+            if (s->op_precedence < current_precedence) break;
+            const void *func = s->function;
+            
+            s->expecting_operator = 1;
+            next_token(s);
+            
+            LouroExpression *new_left = new_expr(LOURO_FUNCTION1 | LOURO_FLAG_PURE, 0);
+            if (!new_left) { louro_free(left);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            new_left->function = func;
+            new_left->parameters[0] = left;
+            left = new_left;
+            continue;
         }
+
+        if (s->op_flags & LOURO_FLAG_INFIX) {
+            if (s->op_precedence < current_precedence) break;
+            
+            int op_prec = s->op_precedence;
+            int right_assoc = (s->op_flags & LOURO_FLAG_RIGHT_ASSOC);
+            const void *func = s->function;
+            
+            s->expecting_operator = 0;
+            next_token(s);
+            
+            int next_prec = right_assoc ? op_prec : (op_prec + 1);
+            LouroExpression *right = parse_expr_dynamic(s, next_prec);
+            if (!right) { louro_free(left);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            
+            LouroExpression *new_left = new_expr(LOURO_FUNCTION2 | LOURO_FLAG_PURE, 0);
+            if (!new_left) { louro_free(left); louro_free(right);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            new_left->function = func;
+            new_left->parameters[0] = left;
+            new_left->parameters[1] = right;
+            left = new_left;
+            continue;
+        }
+        
+        break;
     }
-
-    if (neg) {
-        LouroExpression *prev = ret;
-        ret = NEW_EXPR(LOURO_FUNCTION1 | LOURO_FLAG_PURE, ret);
-        CHECK_NULL(ret, louro_free(prev));
-
-        ret->function = (const void*)lr_negate;
-    }
-
-    return ret;
+    return left;
 }
-#else
-static inline LouroExpression *factor(state *s) {
-    /* <factor>    =    <power> {"^" <power>} */
-    LouroExpression *ret = power(s);
-    CHECK_NULL(ret);
-
-    while (s->type == TOK_INFIX && (s->function == pow)) {
-        lr_fun2 t = (lr_fun2)s->function;
-        next_token(s);
-        LouroExpression *p = power(s);
-        CHECK_NULL(p, louro_free(ret));
-
-        LouroExpression *prev = ret;
-        ret = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, ret, p);
-        CHECK_NULL(ret, louro_free(p), louro_free(prev));
-
-        ret->function = (const void*)t;
-    }
-
-    return ret;
-}
-#endif
-
-
-
-static inline LouroExpression *term(state *s) {
-    /* <term>      =    <factor> {("*" | "/" | "%") <factor>} */
-    LouroExpression *ret = factor(s);
-    CHECK_NULL(ret);
-
-    while (s->type == TOK_INFIX && (s->function == lr_mul || s->function == lr_divide || s->function == fmod)) {
-        lr_fun2 t = (lr_fun2)s->function;
-        next_token(s);
-        LouroExpression *f = factor(s);
-        CHECK_NULL(f, louro_free(ret));
-
-        LouroExpression *prev = ret;
-        ret = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, ret, f);
-        CHECK_NULL(ret, louro_free(f), louro_free(prev));
-
-        ret->function = (const void*)t;
-    }
-
-    return ret;
-}
-
-
-static inline LouroExpression *expr(state *s) {
-    /* <expr>      =    <term> {("+" | "-") <term>} */
-    LouroExpression *ret = term(s);
-    CHECK_NULL(ret);
-
-    while (s->type == TOK_INFIX && (s->function == lr_add || s->function == lr_sub)) {
-        lr_fun2 t = (lr_fun2)s->function;
-        next_token(s);
-        LouroExpression *te = term(s);
-        CHECK_NULL(te, louro_free(ret));
-
-        LouroExpression *prev = ret;
-        ret = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, ret, te);
-        CHECK_NULL(ret, louro_free(te), louro_free(prev));
-
-        ret->function = (const void*)t;
-    }
-
-    return ret;
-}
-
-
-static inline LouroExpression *comparison(state *s) {
-    /* <comparison> = <expr> {("<" | ">" | "<=" | ">=" | "==" | "!=") <expr>} */
-    LouroExpression *ret = expr(s);
-    CHECK_NULL(ret);
-
-    while (s->type == TOK_INFIX && (
-               s->function == lr_cmp_lt || s->function == lr_cmp_gt ||
-               s->function == lr_cmp_le || s->function == lr_cmp_ge ||
-               s->function == lr_cmp_eq || s->function == lr_cmp_ne)) {
-        lr_fun2 t = (lr_fun2)s->function;
-        next_token(s);
-        LouroExpression *r = expr(s);
-        CHECK_NULL(r, louro_free(ret));
-
-        LouroExpression *prev = ret;
-        ret = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, ret, r);
-        CHECK_NULL(ret, louro_free(r), louro_free(prev));
-
-        ret->function = (const void*)t;
-    }
-
-    return ret;
-}
-
-
-static inline LouroExpression *list(state *s) {
-    /* <list>      =    <comparison> {"," <comparison>} */
-    LouroExpression *ret = comparison(s);
-    CHECK_NULL(ret);
-
-    while (s->type == TOK_SEP) {
-        next_token(s);
-        LouroExpression *e = comparison(s);
-        CHECK_NULL(e, louro_free(ret));
-
-        LouroExpression *prev = ret;
-        ret = NEW_EXPR(LOURO_FUNCTION2 | LOURO_FLAG_PURE, ret, e);
-        CHECK_NULL(ret, louro_free(e), louro_free(prev));
-
-        ret->function = (const void*)lr_comma;
-    }
-
-    return ret;
-}
-
 
 #define LR_FUN(...) ((double(*)(__VA_ARGS__))n->function)
 #define M(e) louro_evaluate((LouroExpression*)n->parameters[e])
@@ -704,17 +568,18 @@ static inline void optimize(LouroExpression *n) {
 
 
 static inline LouroExpression *louro_compile(const char *expression, const LouroVariable *variables, int var_count, int *error) {
-    state s;
+    state s = { 0 };
     s.start = s.next = expression;
     s.context = 0;
     s.lookup = variables;
     s.lookup_len = var_count;
+    s.expecting_operator = 0;
 
     next_token(&s);
-    LouroExpression *root = list(&s);
+    LouroExpression *root = parse_expr_dynamic(&s, 0);
     if (root == NULL) {
         if (error) *error = -1;
-        return NULL;
+         { printf("NULL at %d\n", __LINE__); return NULL; };
     }
 
     if (s.type != TOK_END) {
@@ -729,52 +594,6 @@ static inline LouroExpression *louro_compile(const char *expression, const Louro
         if (error) *error = 0;
         return root;
     }
-}
-
-
-static inline double louro_interpret(const char *expression, int *error) {
-    LouroExpression *n = louro_compile(expression, 0, 0, error);
-
-    double ret;
-    if (n) {
-        ret = louro_evaluate(n);
-        louro_free(n);
-    } else {
-        ret = NAN;
-    }
-    return ret;
-}
-
-
-
-static inline void pn (const LouroExpression *n, int depth) {
-    int i, arity;
-    printf("%*s", depth, "");
-
-    switch(TYPE_MASK(n->type)) {
-    case LOURO_CONSTANT: printf("%f\n", n->value); break;
-    case LOURO_VARIABLE: printf("bound %p\n", (void*)n->bound); break;
-
-    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3:
-    case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
-    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3:
-    case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
-         arity = ARITY(n->type);
-         printf("f%d", arity);
-         for(i = 0; i < arity; i++) {
-             printf(" %p", n->parameters[i]);
-         }
-         printf("\n");
-         for(i = 0; i < arity; i++) {
-             pn((LouroExpression*)n->parameters[i], depth + 1);
-         }
-         break;
-    }
-}
-
-
-static inline void louro_print(const LouroExpression *n) {
-    pn(n, 0);
 }
 
 #ifdef __cplusplus

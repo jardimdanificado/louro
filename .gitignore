@@ -1,8 +1,11 @@
 *.o
 *.a
 *.so
-tests/run_tests
+examples/tests/run_tests
+examples/tests/test
 examples/01_basic
 examples/02_variables
+examples/test_*
+examples/benchmark
 *.exe
 .vscode/
