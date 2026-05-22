@@ -103,69 +103,224 @@ static inline double urb_insert(double _list, double index, double value)
     return _list;
 }
 
-static inline double urb_set(double _list, double index, double value)
+static inline double urb_set(double _list, double i, double value)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
     i = (i < 0) ? (list->size + i) : i;
     if (list->size <= 0 || i >= list->size || i < 0)
         return 0.0;
-    list->data[index] = value;
+    list->data[(int)i] = value;
     return _list;
 }
 
-static inline double urb_pop(double _list)
+static inline double urb_get_i8(double _list, double i)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
-    if (list->size <= 0)
+    double max_elems = list->size * (sizeof(double) / sizeof(int8_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
         return 0.0;
-    return list->data[--list->size];
+    return (double)(((int8_t*)list->data)[(int)i]);
 }
 
-static inline double urb_shift(double _list)
+static inline double urb_set_i8(double _list, double i, double value)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
-    if (list->size <= 0)
+    double max_elems = list->size * (sizeof(double) / sizeof(int8_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
         return 0.0;
-    double ret = list->data[0];
-    memmove(&(list->data[0]), &(list->data[1]), (size_t)(list->size - 1) * 8); 
-    list->size--; 
-    return ret;
+    ((int8_t*)list->data)[(int)i] = (int8_t)value;
+    return _list;
 }
 
-static inline double urb_remove(double _list, double i)
+static inline double urb_get_u8(double _list, double i)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
-    double original_index = i;
-    
-    // index cycle
-    i = (i < 0) ? (list->size + i) : i;
-
-    if (list->size <= 0)
+    double max_elems = list->size * (sizeof(double) / sizeof(uint8_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
         return 0.0;
-    else if(i >= list->size || i < 0)
-        return 0.0;
-    
-    double ret = list->data[(int)i];
-    double elements_to_move = list->size - i - 1;
-    memmove(&(list->data[(int)i]), &(list->data[(int)i + 1]), elements_to_move * 8); 
-    list->size--; 
-    return ret;
+    return (double)(((uint8_t*)list->data)[(int)i]);
 }
 
-static inline double urb_get(double _list, double i)
+static inline double urb_set_u8(double _list, double i, double value)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
-    i = (i < 0) ? (list->size + i) : i;
-    if (list->size <= 0 || i >= list->size || i < 0)
+    double max_elems = list->size * (sizeof(double) / sizeof(uint8_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
         return 0.0;
-    return list->data[(int)i];
+    ((uint8_t*)list->data)[(int)i] = (uint8_t)value;
+    return _list;
 }
 
-static inline double urb_len(double _list)
+static inline double urb_get_i16(double _list, double i)
 {
     Urb *list = (Urb*)(uintptr_t)_list;
-    if(!list) return 0.0;
-    return (double)list->size;
+    double max_elems = list->size * (sizeof(double) / sizeof(int16_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((int16_t*)list->data)[(int)i]);
+}
+
+static inline double urb_set_i16(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(int16_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((int16_t*)list->data)[(int)i] = (int16_t)value;
+    return _list;
+}
+
+static inline double urb_get_u16(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(uint16_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((uint16_t*)list->data)[(int)i]);
+}
+
+static inline double urb_set_u16(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(uint16_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((uint16_t*)list->data)[(int)i] = (uint16_t)value;
+    return _list;
+}
+
+static inline double urb_get_i32(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(int32_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((int32_t*)list->data)[(int)i]);
+}
+
+static inline double urb_set_i32(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(int32_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((int32_t*)list->data)[(int)i] = (int32_t)value;
+    return _list;
+}
+
+static inline double urb_get_u32(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(uint32_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((uint32_t*)list->data)[(int)i]);
+}
+
+static inline double urb_set_u32(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(uint32_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((uint32_t*)list->data)[(int)i] = (uint32_t)value;
+    return _list;
+}
+
+static inline double urb_get_i64(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(int64_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((int64_t*)list->data)[(int)i]);
+}
+
+static inline double urb_set_i64(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(int64_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((int64_t*)list->data)[(int)i] = (int64_t)value;
+    return _list;
+}
+
+static inline double urb_get_u64(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(uint64_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((uint64_t*)list->data)[(int)i]);
+}
+
+static inline double urb_set_u64(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(uint64_t));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((uint64_t*)list->data)[(int)i] = (uint64_t)value;
+    return _list;
+}
+
+static inline double urb_get_f32(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(float));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((float*)list->data)[(int)i]);
+}
+
+static inline double urb_set_f32(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(float));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((float*)list->data)[(int)i] = (float)value;
+    return _list;
+}
+
+static inline double urb_get_f64(double _list, double i)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(double));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    return (double)(((double*)list->data)[(int)i]);
+}
+
+static inline double urb_set_f64(double _list, double i, double value)
+{
+    Urb *list = (Urb*)(uintptr_t)_list;
+    double max_elems = list->size * (sizeof(double) / sizeof(double));
+    i = (i < 0) ? (max_elems + i) : i;
+    if (list->size <= 0 || i >= max_elems || i < 0)
+        return 0.0;
+    ((double*)list->data)[(int)i] = (double)value;
+    return _list;
 }
 
 #define LOURO_URB \
@@ -181,6 +336,27 @@ static inline double urb_len(double _list)
     LOURO_IMPURE("shift", urb_shift, 1), \
     LOURO_IMPURE("remove", urb_remove, 2), \
     LOURO_IMPURE("get", urb_get, 2), \
-    LOURO_IMPURE("len", urb_len, 1)
-    
+    LOURO_IMPURE("len", urb_len, 1), \
+    LOURO_IMPURE("get_i8", urb_get_i8, 2), \
+    LOURO_IMPURE("set_i8", urb_set_i8, 3), \
+    LOURO_IMPURE("get_u8", urb_get_u8, 2), \
+    LOURO_IMPURE("set_u8", urb_set_u8, 3), \
+    LOURO_IMPURE("get_i16", urb_get_i16, 2), \
+    LOURO_IMPURE("set_i16", urb_set_i16, 3), \
+    LOURO_IMPURE("get_u16", urb_get_u16, 2), \
+    LOURO_IMPURE("set_u16", urb_set_u16, 3), \
+    LOURO_IMPURE("get_i32", urb_get_i32, 2), \
+    LOURO_IMPURE("set_i32", urb_set_i32, 3), \
+    LOURO_IMPURE("get_u32", urb_get_u32, 2), \
+    LOURO_IMPURE("set_u32", urb_set_u32, 3), \
+    LOURO_IMPURE("get_i64", urb_get_i64, 2), \
+    LOURO_IMPURE("set_i64", urb_set_i64, 3), \
+    LOURO_IMPURE("get_u64", urb_get_u64, 2), \
+    LOURO_IMPURE("set_u64", urb_set_u64, 3), \
+    LOURO_IMPURE("get_f32", urb_get_f32, 2), \
+    LOURO_IMPURE("set_f32", urb_set_f32, 3), \
+    LOURO_IMPURE("get_f64", urb_get_f64, 2), \
+    LOURO_IMPURE("set_f64", urb_set_f64, 3)
+
 #endif // ifndef URB_H macro
+
