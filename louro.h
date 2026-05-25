@@ -495,13 +495,34 @@ static inline double louro_evaluate(const LouroExpression *n) {
         case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
             switch(ARITY(n->type)) {
                 case 0: return LR_FUN(void)();
-                case 1: return LR_FUN(double)(M(0));
-                case 2: return LR_FUN(double, double)(M(0), M(1));
-                case 3: return LR_FUN(double, double, double)(M(0), M(1), M(2));
-                case 4: return LR_FUN(double, double, double, double)(M(0), M(1), M(2), M(3));
-                case 5: return LR_FUN(double, double, double, double, double)(M(0), M(1), M(2), M(3), M(4));
-                case 6: return LR_FUN(double, double, double, double, double, double)(M(0), M(1), M(2), M(3), M(4), M(5));
-                case 7: return LR_FUN(double, double, double, double, double, double, double)(M(0), M(1), M(2), M(3), M(4), M(5), M(6));
+                case 1: {
+                    double m0 = M(0);
+                    return LR_FUN(double)(m0);
+                }
+                case 2: {
+                    double m0 = M(0); double m1 = M(1);
+                    return LR_FUN(double, double)(m0, m1);
+                }
+                case 3: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2);
+                    return LR_FUN(double, double, double)(m0, m1, m2);
+                }
+                case 4: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3);
+                    return LR_FUN(double, double, double, double)(m0, m1, m2, m3);
+                }
+                case 5: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4);
+                    return LR_FUN(double, double, double, double, double)(m0, m1, m2, m3, m4);
+                }
+                case 6: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5);
+                    return LR_FUN(double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5);
+                }
+                case 7: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6);
+                    return LR_FUN(double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6);
+                }
                 default: return NAN;
             }
 
@@ -509,13 +530,34 @@ static inline double louro_evaluate(const LouroExpression *n) {
         case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
             switch(ARITY(n->type)) {
                 case 0: return LR_FUN(void*)(n->parameters[0]);
-                case 1: return LR_FUN(void*, double)(n->parameters[1], M(0));
-                case 2: return LR_FUN(void*, double, double)(n->parameters[2], M(0), M(1));
-                case 3: return LR_FUN(void*, double, double, double)(n->parameters[3], M(0), M(1), M(2));
-                case 4: return LR_FUN(void*, double, double, double, double)(n->parameters[4], M(0), M(1), M(2), M(3));
-                case 5: return LR_FUN(void*, double, double, double, double, double)(n->parameters[5], M(0), M(1), M(2), M(3), M(4));
-                case 6: return LR_FUN(void*, double, double, double, double, double, double)(n->parameters[6], M(0), M(1), M(2), M(3), M(4), M(5));
-                case 7: return LR_FUN(void*, double, double, double, double, double, double, double)(n->parameters[7], M(0), M(1), M(2), M(3), M(4), M(5), M(6));
+                case 1: {
+                    double m0 = M(0);
+                    return LR_FUN(void*, double)(n->parameters[1], m0);
+                }
+                case 2: {
+                    double m0 = M(0); double m1 = M(1);
+                    return LR_FUN(void*, double, double)(n->parameters[2], m0, m1);
+                }
+                case 3: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2);
+                    return LR_FUN(void*, double, double, double)(n->parameters[3], m0, m1, m2);
+                }
+                case 4: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3);
+                    return LR_FUN(void*, double, double, double, double)(n->parameters[4], m0, m1, m2, m3);
+                }
+                case 5: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4);
+                    return LR_FUN(void*, double, double, double, double, double)(n->parameters[5], m0, m1, m2, m3, m4);
+                }
+                case 6: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5);
+                    return LR_FUN(void*, double, double, double, double, double, double)(n->parameters[6], m0, m1, m2, m3, m4, m5);
+                }
+                case 7: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6);
+                    return LR_FUN(void*, double, double, double, double, double, double, double)(n->parameters[7], m0, m1, m2, m3, m4, m5, m6);
+                }
                 default: return NAN;
             }
 
