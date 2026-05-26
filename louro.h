@@ -82,13 +82,13 @@ typedef struct LouroVariable {
 } LouroVariable;
 #define LOURO_VAR(name, ptr) {name, (const void*)(ptr), LOURO_VARIABLE, 0}
 
-#define LOURO_PURE(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, 0}
-#define LOURO_IMPURE(name, func, arity) {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), 0}
+#define LOURO_PURE(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, (void*)#func}
+#define LOURO_IMPURE(name, func, arity) {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), (void*)#func}
 
-#define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), 0}
-#define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), 0}
-#define LOURO_OP_PREFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), 0}
-#define LOURO_OP_POSTFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), 0}
+#define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
+#define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
+#define LOURO_OP_PREFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
+#define LOURO_OP_POSTFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
 
 /* Parses the input expression. */
 /* Returns NULL on error. */
