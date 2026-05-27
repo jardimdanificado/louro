@@ -70,7 +70,8 @@ enum {
     
     LOURO_FLAG_INFIX = 256,
     LOURO_FLAG_PREFIX = 512,
-    LOURO_FLAG_POSTFIX = 1024
+    LOURO_FLAG_POSTFIX = 1024,
+    LOURO_FLAG_TERNARY = 2048
 };
 
 /* Builtin function descriptor (used internally; no variable binding). */
@@ -79,16 +80,20 @@ typedef struct LouroVariable {
     const void *address;
     int type;
     void *context;
+    const char *separator;
 } LouroVariable;
-#define LOURO_VAR(name, ptr) {name, (const void*)(ptr), LOURO_VARIABLE, 0}
+#define LOURO_VAR(name, ptr) {name, (const void*)(ptr), LOURO_VARIABLE, 0, NULL}
 
-#define LOURO_PURE(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, (void*)#func}
-#define LOURO_IMPURE(name, func, arity) {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), (void*)#func}
+#define LOURO_PURE(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, (void*)#func, NULL}
+#define LOURO_IMPURE(name, func, arity) {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), (void*)#func, NULL}
 
-#define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
-#define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
-#define LOURO_OP_PREFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
-#define LOURO_OP_POSTFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func}
+#define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_PREFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_POSTFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+
+#define LOURO_TERNARY(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
+#define LOURO_TERNARY_PREFIX(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
 
 /* Parses the input expression. */
 /* Returns NULL on error. */
@@ -112,7 +117,8 @@ typedef double (*lr_fun2)(double, double);
 
 enum {
     TOK_NULL = LOURO_CLOSURE7+1, TOK_ERROR, TOK_END, TOK_SEP,
-    TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR
+    TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR,
+    TOK_TERNARY_SEP
 };
 
 
@@ -132,6 +138,7 @@ typedef struct state {
     int expecting_operator;
     int op_precedence;
     int op_flags;
+    const char *op_separator;
 } state;
 
 
@@ -231,7 +238,7 @@ static inline void next_token(state *s) {
                     
                     if (var->type & LOURO_OPERATOR) {
                         if (s->expecting_operator) {
-                            if (!(var->type & (LOURO_FLAG_INFIX | LOURO_FLAG_POSTFIX))) continue;
+                            if (!(var->type & (LOURO_FLAG_INFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY))) continue;
                         } else {
                             if (!(var->type & LOURO_FLAG_PREFIX)) continue;
                         }
@@ -251,7 +258,8 @@ static inline void next_token(state *s) {
                 s->type = TOK_OPERATOR;
                 s->function = best_match->address;
                 s->op_precedence = (best_match->type >> 12);
-                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX);
+                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY);
+                s->op_separator = best_match->separator;
                 return;
             } else {
                 switch(TYPE_MASK(best_match->type)) {
@@ -267,6 +275,22 @@ static inline void next_token(state *s) {
                         s->type = best_match->type;
                         s->function = best_match->address;
                         return;
+                }
+            }
+        }
+
+        /* 1.5. Match custom ternary separators */
+        if (!best_match && s->lookup) {
+            for (int i = 0; i < s->lookup_len; ++i) {
+                const LouroVariable *var = &s->lookup[i];
+                if (var->separator) {
+                    int len = strlen(var->separator);
+                    if (strncmp(s->next, var->separator, len) == 0) {
+                        s->next += len;
+                        s->type = TOK_TERNARY_SEP;
+                        s->op_separator = var->separator; // Pass which separator was found
+                        return;
+                    }
                 }
             }
         }
@@ -416,12 +440,34 @@ static inline LouroExpression *parse_prefix(state *s) {
     if (s->type == TOK_OPERATOR && (s->op_flags & LOURO_FLAG_PREFIX)) {
         const void *func = s->function;
         int prec = s->op_precedence;
+        const char *sep = s->op_separator;
+        int is_ternary = (s->op_flags & LOURO_FLAG_TERNARY);
         
         s->expecting_operator = 0;
         next_token(s);
         
         LouroExpression *operand = parse_expr_dynamic(s, prec);
         if (!operand)  { printf("NULL at %d\n", __LINE__); return NULL; };
+        
+        if (is_ternary) {
+            /* Expect the separator (e.g. "else") */
+            if (s->type != TOK_TERNARY_SEP || s->op_separator != sep) {
+                louro_free(operand); { printf("NULL at %d\n", __LINE__); return NULL; };
+            }
+            
+            s->expecting_operator = 0;
+            next_token(s);
+            
+            LouroExpression *operand2 = parse_expr_dynamic(s, prec);
+            if (!operand2) { louro_free(operand); { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            
+            LouroExpression *ret = new_expr(LOURO_FUNCTION2 | LOURO_FLAG_PURE, 0);
+            if (!ret) { louro_free(operand); louro_free(operand2); { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            ret->function = func;
+            ret->parameters[0] = operand;
+            ret->parameters[1] = operand2;
+            return ret;
+        }
         
         LouroExpression *ret = new_expr(LOURO_FUNCTION1 | LOURO_FLAG_PURE, 0);
         if (!ret) { louro_free(operand);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
@@ -448,6 +494,41 @@ static inline LouroExpression *parse_expr_dynamic(state *s, int current_preceden
             if (!new_left) { louro_free(left);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             new_left->function = func;
             new_left->parameters[0] = left;
+            left = new_left;
+            continue;
+        }
+
+        if (s->op_flags & LOURO_FLAG_TERNARY) {
+            if (s->op_precedence < current_precedence) break;
+            
+            int op_prec = s->op_precedence;
+            int right_assoc = (s->op_flags & LOURO_FLAG_RIGHT_ASSOC);
+            const void *func = s->function;
+            const char *expected_separator = s->op_separator;
+            
+            s->expecting_operator = 0;
+            next_token(s);
+            
+            LouroExpression *middle = parse_expr_dynamic(s, 0);
+            if (!middle) { louro_free(left);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            
+            if (s->type != TOK_TERNARY_SEP || s->op_separator != expected_separator) {
+                louro_free(left); louro_free(middle);  { printf("NULL at %d\n", __LINE__); return NULL; };
+            }
+            
+            s->expecting_operator = 0;
+            next_token(s);
+            
+            int next_prec = right_assoc ? op_prec : (op_prec + 1);
+            LouroExpression *right = parse_expr_dynamic(s, next_prec);
+            if (!right) { louro_free(left); louro_free(middle);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            
+            LouroExpression *new_left = new_expr(LOURO_FUNCTION3 | LOURO_FLAG_PURE, 0);
+            if (!new_left) { louro_free(left); louro_free(middle); louro_free(right);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            new_left->function = func;
+            new_left->parameters[0] = left;
+            new_left->parameters[1] = middle;
+            new_left->parameters[2] = right;
             left = new_left;
             continue;
         }
