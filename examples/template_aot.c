@@ -10,52 +10,110 @@
 #error "ENV_HEADER must be defined!"
 #endif
 
-// We calculate the count automatically from the user's louro_exports array
+// Count is calculated automatically from the user's louro_exports array
 int global_var_count = sizeof(louro_exports) / sizeof(louro_exports[0]);
 
-const char* get_var_c_name(const void* ptr) {
+static const char* get_var_c_name(const void* ptr) {
     for (int i = 0; i < global_var_count; i++) {
-        if (louro_exports[i].address == ptr && TYPE_MASK(louro_exports[i].type) == LOURO_VARIABLE) {
-            return louro_exports[i].name; // Emitting the variable name exactly as it was bound
-        }
+        if (louro_exports[i].address == ptr && TYPE_MASK(louro_exports[i].type) == LOURO_VARIABLE)
+            return louro_exports[i].name;
     }
     return "unknown_var";
 }
 
-void louro_emit_c(const LouroExpression *n) {
-    if (!n) return;
-    
-    int type = TYPE_MASK(n->type);
-    
-    if (type == LOURO_CONSTANT) {
-        printf("%f", n->value);
-        return;
-    }
-    
-    if (type == LOURO_VARIABLE) {
-        printf("%s", get_var_c_name(n->bound));
-        return;
-    }
-    
-    int arity = ARITY(n->type);
-    
-    // Look up the C function name in the environment
-    const char *c_func = NULL;
+static const char* get_func_name(const void *fn) {
     for (int i = 0; i < global_var_count; i++) {
-        if (louro_exports[i].address == n->function) {
-            c_func = (const char*)louro_exports[i].context;
-            break;
+        if (louro_exports[i].address == fn)
+            return (const char*)louro_exports[i].context;
+    }
+    return "unknown_func";
+}
+
+/* Forward declarations */
+static void louro_emit_c(const LouroExpression *n, int start_id);
+
+/* Returns the number of lazy thunks required by this subtree. */
+static int get_thunk_count(const LouroExpression *n) {
+    if (!n) return 0;
+    int type = TYPE_MASK(n->type);
+    if (type == LOURO_CONSTANT || type == LOURO_VARIABLE) return 0;
+    int count = 0;
+    int arity = ARITY(n->type);
+    for (int i = 0; i < arity; i++) {
+        count += get_thunk_count((LouroExpression*)n->parameters[i]);
+    }
+    if (IS_LAZY(n->type)) count += arity;
+    return count;
+}
+
+/*
+ * Pass 1: Emit thunk definitions.
+ * start_id defines the base ID for this subtree.
+ */
+static void louro_emit_thunks(const LouroExpression *n, int start_id) {
+    if (!n) return;
+    int type = TYPE_MASK(n->type);
+    if (type == LOURO_CONSTANT || type == LOURO_VARIABLE) return;
+
+    int arity = ARITY(n->type);
+    int is_lazy = IS_LAZY(n->type);
+    
+    int current_id = start_id;
+    for (int i = 0; i < arity; i++) {
+        louro_emit_thunks((LouroExpression*)n->parameters[i], current_id);
+        current_id += get_thunk_count((LouroExpression*)n->parameters[i]);
+    }
+
+    if (is_lazy) {
+        int my_base = current_id;
+        for (int i = 0; i < arity; i++) {
+            printf("static double __thunk_%d(void* _) { return ", my_base + i);
+            /* Compute child's start_id for louro_emit_c */
+            int child_start = start_id;
+            for (int j = 0; j < i; j++) {
+                child_start += get_thunk_count((LouroExpression*)n->parameters[j]);
+            }
+            louro_emit_c((LouroExpression*)n->parameters[i], child_start);
+            printf("; }\n");
         }
     }
-    
-    if (!c_func) c_func = "unknown_func";
+}
 
-    printf("%s(", c_func);
-    for (int i = 0; i < arity; i++) {
-        louro_emit_c((LouroExpression*)n->parameters[i]);
-        if (i < arity - 1) printf(", ");
+/*
+ * Pass 2: Emit the expression.
+ */
+static void louro_emit_c(const LouroExpression *n, int start_id) {
+    if (!n) return;
+    int type = TYPE_MASK(n->type);
+    if (type == LOURO_CONSTANT) { printf("%f", n->value); return; }
+    if (type == LOURO_VARIABLE) { printf("%s", get_var_c_name(n->bound)); return; }
+
+    int arity = ARITY(n->type);
+    int is_lazy = IS_LAZY(n->type);
+    const char *c_func = get_func_name(n->function);
+
+    if (is_lazy) {
+        int my_base = start_id;
+        for (int i = 0; i < arity; i++) {
+            my_base += get_thunk_count((LouroExpression*)n->parameters[i]);
+        }
+        
+        printf("%s(", c_func);
+        for (int i = 0; i < arity; i++) {
+            printf("&(LouroLazy){ __thunk_%d, NULL }", my_base + i);
+            if (i < arity - 1) printf(", ");
+        }
+        printf(")");
+    } else {
+        printf("%s(", c_func);
+        int current_id = start_id;
+        for (int i = 0; i < arity; i++) {
+            louro_emit_c((LouroExpression*)n->parameters[i], current_id);
+            current_id += get_thunk_count((LouroExpression*)n->parameters[i]);
+            if (i < arity - 1) printf(", ");
+        }
+        printf(")");
     }
-    printf(")");
 }
 
 static char *read_file(const char *path, size_t *out_len) {
@@ -76,7 +134,7 @@ static char *read_file(const char *path, size_t *out_len) {
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: template_aot <file.arara>\n");
+        fprintf(stderr, "Usage: template_aot <file.txt>\n");
         return 1;
     }
 
@@ -93,25 +151,26 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Syntax Error: Failed to compile louro expression at %d\n", err);
         return 1;
     }
-    
+
     printf("// --- C Code Generated by Louco AOT ---\n");
-    
-    // Inject the user's environment if they defined it so the generated C code has access to the custom C functions!
     #ifdef ENV_HEADER
     printf("#include \"%s\"\n", ENV_HEADER);
     #endif
+
+    printf("\n// Transpiled from: %s\n", argv[1]);
+    printf("// (Thunks for lazy operators are emitted inline below)\n");
     
-    printf("\n// Transpiled script from: %s\n", argv[1]);
+    louro_emit_thunks(compiled, 0);
+
     printf("int main() {\n");
     printf("    double _result = ");
-    
-    louro_emit_c(compiled);
-    
+
+    louro_emit_c(compiled, 0);
+
     printf(";\n    return 0;\n}\n");
     printf("// --------------------------------------\n");
 
     louro_free(compiled);
     free(input);
-
     return 0;
 }

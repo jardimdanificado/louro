@@ -71,8 +71,15 @@ enum {
     LOURO_FLAG_INFIX = 256,
     LOURO_FLAG_PREFIX = 512,
     LOURO_FLAG_POSTFIX = 1024,
-    LOURO_FLAG_TERNARY = 2048
+    LOURO_FLAG_TERNARY = 2048,
+    LOURO_FLAG_LAZY = 4096
 };
+
+/* Lazy evaluation: a thunk wrapping an unevaluated expression */
+typedef double (*LouroThunk)(void*);
+typedef struct { LouroThunk thunk; void *data; } LouroLazy;
+static inline double louro_lazy_eval(LouroLazy *l) { return l->thunk(l->data); }
+#define IS_LAZY(TYPE) (((TYPE) & LOURO_FLAG_LAZY) != 0)
 
 /* Builtin function descriptor (used internally; no variable binding). */
 typedef struct LouroVariable {
@@ -84,16 +91,22 @@ typedef struct LouroVariable {
 } LouroVariable;
 #define LOURO_VAR(name, ptr) {name, (const void*)(ptr), LOURO_VARIABLE, 0, NULL}
 
-#define LOURO_PURE(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, (void*)#func, NULL}
-#define LOURO_IMPURE(name, func, arity) {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), (void*)#func, NULL}
+#define LOURO_PURE(name, func, arity)         {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE, (void*)#func, NULL}
+#define LOURO_IMPURE(name, func, arity)        {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)), (void*)#func, NULL}
+#define LOURO_PURE_LAZY(name, func, arity)     {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE | LOURO_FLAG_LAZY, (void*)#func, NULL}
+#define LOURO_IMPURE_LAZY(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_LAZY, (void*)#func, NULL}
 
-#define LOURO_OP(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_RIGHT(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_PREFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_POSTFIX(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP(name, func, prec)             {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_RIGHT(name, func, prec)       {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_PREFIX(name, func, prec)      {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_POSTFIX(name, func, prec)     {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_LAZY(name, func, prec)        {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP_PREFIX_LAZY(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, NULL}
 
-#define LOURO_TERNARY(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
-#define LOURO_TERNARY_PREFIX(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
+#define LOURO_TERNARY(name, sep, func, prec)        {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
+#define LOURO_TERNARY_LAZY(name, sep, func, prec)   {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, sep}
+#define LOURO_TERNARY_PREFIX(name, sep, func, prec)      {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
+#define LOURO_TERNARY_PREFIX_LAZY(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, sep}
 
 /* Parses the input expression. */
 /* Returns NULL on error. */
@@ -101,6 +114,9 @@ static inline LouroExpression *louro_compile(const char *expression, const Louro
 
 /* Evaluates the expression. */
 static inline double louro_evaluate(const LouroExpression *n);
+
+/* Lazy thunk wrapper — calls louro_evaluate on a stored node. */
+static double louro_thunk_wrapper(void *node) { return louro_evaluate((const LouroExpression*)node); }
 
 /* Frees the expression. */
 /* This is safe to call on NULL pointers. */
@@ -258,7 +274,7 @@ static inline void next_token(state *s) {
                 s->type = TOK_OPERATOR;
                 s->function = best_match->address;
                 s->op_precedence = (best_match->type >> 12);
-                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY);
+                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY | LOURO_FLAG_LAZY);
                 s->op_separator = best_match->separator;
                 return;
             } else {
@@ -442,6 +458,7 @@ static inline LouroExpression *parse_prefix(state *s) {
         int prec = s->op_precedence;
         const char *sep = s->op_separator;
         int is_ternary = (s->op_flags & LOURO_FLAG_TERNARY);
+        int lazy_flag  = (s->op_flags & LOURO_FLAG_LAZY);
         
         s->expecting_operator = 0;
         next_token(s);
@@ -461,7 +478,7 @@ static inline LouroExpression *parse_prefix(state *s) {
             LouroExpression *operand2 = parse_expr_dynamic(s, prec);
             if (!operand2) { louro_free(operand); { printf("NULL at %d\n", __LINE__); return NULL; }; }
             
-            LouroExpression *ret = new_expr(LOURO_FUNCTION2 | LOURO_FLAG_PURE, 0);
+            LouroExpression *ret = new_expr(LOURO_FUNCTION2 | LOURO_FLAG_PURE | lazy_flag, 0);
             if (!ret) { louro_free(operand); louro_free(operand2); { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = func;
             ret->parameters[0] = operand;
@@ -469,7 +486,7 @@ static inline LouroExpression *parse_prefix(state *s) {
             return ret;
         }
         
-        LouroExpression *ret = new_expr(LOURO_FUNCTION1 | LOURO_FLAG_PURE, 0);
+        LouroExpression *ret = new_expr(LOURO_FUNCTION1 | LOURO_FLAG_PURE | lazy_flag, 0);
         if (!ret) { louro_free(operand);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
         ret->function = func;
         ret->parameters[0] = operand;
@@ -505,6 +522,7 @@ static inline LouroExpression *parse_expr_dynamic(state *s, int current_preceden
             int right_assoc = (s->op_flags & LOURO_FLAG_RIGHT_ASSOC);
             const void *func = s->function;
             const char *expected_separator = s->op_separator;
+            int lazy_flag = (s->op_flags & LOURO_FLAG_LAZY);
             
             s->expecting_operator = 0;
             next_token(s);
@@ -523,7 +541,7 @@ static inline LouroExpression *parse_expr_dynamic(state *s, int current_preceden
             LouroExpression *right = parse_expr_dynamic(s, next_prec);
             if (!right) { louro_free(left); louro_free(middle);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             
-            LouroExpression *new_left = new_expr(LOURO_FUNCTION3 | LOURO_FLAG_PURE, 0);
+            LouroExpression *new_left = new_expr(LOURO_FUNCTION3 | LOURO_FLAG_PURE | lazy_flag, 0);
             if (!new_left) { louro_free(left); louro_free(middle); louro_free(right);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             new_left->function = func;
             new_left->parameters[0] = left;
@@ -539,6 +557,7 @@ static inline LouroExpression *parse_expr_dynamic(state *s, int current_preceden
             int op_prec = s->op_precedence;
             int right_assoc = (s->op_flags & LOURO_FLAG_RIGHT_ASSOC);
             const void *func = s->function;
+            int lazy_flag = (s->op_flags & LOURO_FLAG_LAZY);
             
             s->expecting_operator = 0;
             next_token(s);
@@ -547,7 +566,7 @@ static inline LouroExpression *parse_expr_dynamic(state *s, int current_preceden
             LouroExpression *right = parse_expr_dynamic(s, next_prec);
             if (!right) { louro_free(left);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             
-            LouroExpression *new_left = new_expr(LOURO_FUNCTION2 | LOURO_FLAG_PURE, 0);
+            LouroExpression *new_left = new_expr(LOURO_FUNCTION2 | LOURO_FLAG_PURE | lazy_flag, 0);
             if (!new_left) { louro_free(left); louro_free(right);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             new_left->function = func;
             new_left->parameters[0] = left;
@@ -574,6 +593,20 @@ static inline double louro_evaluate(const LouroExpression *n) {
 
         case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3:
         case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
+            if (IS_LAZY(n->type)) {
+                switch(ARITY(n->type)) {
+                    case 0: return LR_FUN(void)();
+                    case 1: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]};
+                        return ((double(*)(LouroLazy*))n->function)(&l0); }
+                    case 2: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}, l1={louro_thunk_wrapper,n->parameters[1]};
+                        return ((double(*)(LouroLazy*,LouroLazy*))n->function)(&l0,&l1); }
+                    case 3: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}, l1={louro_thunk_wrapper,n->parameters[1]}, l2={louro_thunk_wrapper,n->parameters[2]};
+                        return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2); }
+                    case 4: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}, l1={louro_thunk_wrapper,n->parameters[1]}, l2={louro_thunk_wrapper,n->parameters[2]}, l3={louro_thunk_wrapper,n->parameters[3]};
+                        return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3); }
+                    default: return NAN;
+                }
+            }
             switch(ARITY(n->type)) {
                 case 0: return LR_FUN(void)();
                 case 1: {
