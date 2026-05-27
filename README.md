@@ -1,6 +1,6 @@
 # Louro
 
-Louro is a heavily modified fork of *TinyExpr* designed to be a tiny Domain Specific Language creation library. You must manually register all operators and functions that you want the language to recognize. For convenience, standard math libraries are provided in `libs/`.
+Louro is a heavily modified fork of *TinyExpr* designed to be a tiny Domain Specific Language creation library. You must manually register all operators and functions that you want the language to recognize.
 
 ## Usage
 
@@ -56,6 +56,35 @@ int main() {
 - **`LOURO_OP_RIGHT("symbol", function, precedence)`**: Registers a right-associative custom dynamic operator (e.g., `**`, `^`).
 - **`LOURO_OP_PREFIX("symbol", function, precedence)`**: Registers a prefix unary operator (e.g., `!x`, `-x`).
 - **`LOURO_OP_POSTFIX("symbol", function, precedence)`**: Registers a postfix unary operator (e.g., `x!`).
+- **`LOURO_TERNARY("sym", "sep", function, precedence)`**: Registers a ternary infix operator (e.g., `a ? b : c`).
+- **`LOURO_TERNARY_PREFIX("sym", "sep", function, precedence)`**: Registers a ternary prefix operator (e.g., `if a else b`).
+
+### Lazy Evaluation (Short-Circuiting)
+
+Louro supports universal lazy evaluation for any operator or function. This allows you to implement short-circuiting (like C's `&&` or `||`) where arguments are only evaluated if necessary.
+
+To use it, append `_LAZY` to any macro (e.g., `LOURO_OP_LAZY`, `LOURO_TERNARY_LAZY`). Your C function will receive opaque `LouroLazy*` pointers instead of `double` values. You evaluate them manually using `louro_lazy_eval()`:
+
+```c
+// Evaluates 'right' only if 'left' is truthy (C '&&' semantics)
+static double my_lazy_and(LouroLazy *left, LouroLazy *right) {
+    if (!louro_lazy_eval(left)) return 0.0;
+    return louro_lazy_eval(right);
+}
+
+// Register it
+LOURO_OP_LAZY("&&", my_lazy_and, 20);
+```
+
+### AOT Code Generator (`louco`)
+
+Louro includes a powerful Ahead-Of-Time (AOT) compiler called `louco` (Louro Code Generator). It reads an Arara script and transpiles it into hyper-optimized, native C code. 
+
+**Usage:**
+```bash
+./louco.sh -e my_env.h input_script.txt -o out.c
+```
+The AOT transpiler guarantees **100% semantic compatibility** with the interpreter. It uses deterministic 2-pass inline thunk generation to compile `_LAZY` operators into zero-overhead native C short-circuiting logic!
 
 ## License
 Louro is provided under the Zlib license. See the top of `louro.h` for more details.
