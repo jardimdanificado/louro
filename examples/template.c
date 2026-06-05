@@ -5,7 +5,7 @@
 #include "./louro/louro.h"
 #include "louro/examples/libs/louro_std.h"
 #include "louro/examples/libs/louro_math.h"
-#include "louro/examples/libs/urb.h"
+#include "louro/examples/libs/louro_urb.h"
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -58,21 +58,28 @@ typedef struct LouroExpression {
 enum {
     LOURO_VARIABLE = 0,
 
-    LOURO_FUNCTION0 = 8, LOURO_FUNCTION1, LOURO_FUNCTION2, LOURO_FUNCTION3,
+    LOURO_FUNCTION0 = 32, LOURO_FUNCTION1, LOURO_FUNCTION2, LOURO_FUNCTION3,
     LOURO_FUNCTION4, LOURO_FUNCTION5, LOURO_FUNCTION6, LOURO_FUNCTION7,
+    LOURO_FUNCTION8, LOURO_FUNCTION9, LOURO_FUNCTION10, LOURO_FUNCTION11,
+    LOURO_FUNCTION12, LOURO_FUNCTION13, LOURO_FUNCTION14, LOURO_FUNCTION15,
+    LOURO_FUNCTION16,
 
-    LOURO_CLOSURE0 = 16, LOURO_CLOSURE1, LOURO_CLOSURE2, LOURO_CLOSURE3,
+    LOURO_CLOSURE0 = 64, LOURO_CLOSURE1, LOURO_CLOSURE2, LOURO_CLOSURE3,
     LOURO_CLOSURE4, LOURO_CLOSURE5, LOURO_CLOSURE6, LOURO_CLOSURE7,
+    LOURO_CLOSURE8, LOURO_CLOSURE9, LOURO_CLOSURE10, LOURO_CLOSURE11,
+    LOURO_CLOSURE12, LOURO_CLOSURE13, LOURO_CLOSURE14, LOURO_CLOSURE15,
+    LOURO_CLOSURE16,
 
-    LOURO_FLAG_PURE = 32,
-    LOURO_OPERATOR = 64,
-    LOURO_FLAG_RIGHT_ASSOC = 128,
+    LOURO_FLAG_PURE = 128,
+    LOURO_OPERATOR = 256,
+    LOURO_FLAG_RIGHT_ASSOC = 512,
     
-    LOURO_FLAG_INFIX = 256,
-    LOURO_FLAG_PREFIX = 512,
-    LOURO_FLAG_POSTFIX = 1024,
-    LOURO_FLAG_TERNARY = 2048,
-    LOURO_FLAG_LAZY = 4096
+    LOURO_FLAG_INFIX = 1024,
+    LOURO_FLAG_PREFIX = 2048,
+    LOURO_FLAG_POSTFIX = 4096,
+    LOURO_FLAG_TERNARY = 8192,
+    LOURO_FLAG_LAZY = 16384,
+    LOURO_FLAG_QUATERNARY = 32768
 };
 
 /* Lazy evaluation: a thunk wrapping an unevaluated expression */
@@ -88,6 +95,8 @@ typedef struct LouroVariable {
     int type;
     void *context;
     const char *separator;
+    const char *separator2;
+    const char *separator3;
 } LouroVariable;
 #define LOURO_VAR(name, ptr) {name, (const void*)(ptr), LOURO_VARIABLE, 0, NULL}
 
@@ -96,17 +105,18 @@ typedef struct LouroVariable {
 #define LOURO_PURE_LAZY(name, func, arity)     {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_PURE | LOURO_FLAG_LAZY, (void*)#func, NULL}
 #define LOURO_IMPURE_LAZY(name, func, arity)   {name, (const void*)(func), (LOURO_FUNCTION0 + (arity)) | LOURO_FLAG_LAZY, (void*)#func, NULL}
 
-#define LOURO_OP(name, func, prec)             {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_RIGHT(name, func, prec)       {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_PREFIX(name, func, prec)      {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_POSTFIX(name, func, prec)     {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_LAZY(name, func, prec)        {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, NULL}
-#define LOURO_OP_PREFIX_LAZY(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, NULL}
+#define LOURO_OP(name, func, prec)             {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, NULL}
+#define LOURO_OP_RIGHT(name, func, prec)       {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FLAG_RIGHT_ASSOC | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, NULL}
+#define LOURO_OP_PREFIX(name, func, prec)      {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, NULL}
+#define LOURO_OP_POSTFIX(name, func, prec)     {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_POSTFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, NULL}
+#define LOURO_OP_LAZY(name, func, prec)        {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_INFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, NULL}
+#define LOURO_OP_PREFIX_LAZY(name, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_PREFIX | LOURO_FUNCTION1 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, NULL}
 
-#define LOURO_TERNARY(name, sep, func, prec)        {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
-#define LOURO_TERNARY_LAZY(name, sep, func, prec)   {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, sep}
-#define LOURO_TERNARY_PREFIX(name, sep, func, prec)      {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 12), (void*)#func, sep}
-#define LOURO_TERNARY_PREFIX_LAZY(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 12), (void*)#func, sep}
+#define LOURO_TERNARY(name, sep, func, prec)        {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, sep}
+#define LOURO_TERNARY_LAZY(name, sep, func, prec)   {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FUNCTION3 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, sep}
+#define LOURO_TERNARY_PREFIX(name, sep, func, prec)      {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, sep}
+#define LOURO_TERNARY_PREFIX_LAZY(name, sep, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_TERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION2 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, sep}
+#define LOURO_QUATERNARY_PREFIX_LAZY(name, sep, sep2, sep3, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_QUATERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION3 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, sep, sep2, sep3}
 
 /* Parses the input expression. */
 /* Returns NULL on error. */
@@ -132,7 +142,7 @@ static inline void louro_free(LouroExpression *n);
 typedef double (*lr_fun2)(double, double);
 
 enum {
-    TOK_NULL = LOURO_CLOSURE7+1, TOK_ERROR, TOK_END, TOK_SEP,
+    TOK_NULL = LOURO_CLOSURE16+1, TOK_ERROR, TOK_END, TOK_SEP,
     TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR,
     TOK_TERNARY_SEP
 };
@@ -155,15 +165,17 @@ typedef struct state {
     int op_precedence;
     int op_flags;
     const char *op_separator;
+    const char *op_separator2;
+    const char *op_separator3;
 } state;
 
 
-#define TYPE_MASK(TYPE) ((TYPE)&0x0000001F)
+#define TYPE_MASK(TYPE) ((TYPE)&0x0000007F)
 
 #define IS_PURE(TYPE) (((TYPE) & LOURO_FLAG_PURE) != 0)
 #define IS_FUNCTION(TYPE) (((TYPE) & LOURO_FUNCTION0) != 0)
 #define IS_CLOSURE(TYPE) (((TYPE) & LOURO_CLOSURE0) != 0)
-#define ARITY(TYPE) ( ((TYPE) & (LOURO_FUNCTION0 | LOURO_CLOSURE0)) ? ((TYPE) & 0x00000007) : 0 )
+#define ARITY(TYPE) ( ((TYPE) & (LOURO_FUNCTION0 | LOURO_CLOSURE0)) ? ((TYPE) & 0x0000001F) : 0 )
 #define NEW_EXPR(type, ...) new_expr((type), (const LouroExpression*[]){__VA_ARGS__})
 #define CHECK_NULL(ptr, ...) if ((ptr) == NULL) { __VA_ARGS__;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
 
@@ -187,6 +199,15 @@ static inline LouroExpression *new_expr(const int type, const LouroExpression *p
 static inline void louro_free_parameters(LouroExpression *n) {
     if (!n) return;
     switch (TYPE_MASK(n->type)) {
+        case LOURO_FUNCTION16: case LOURO_CLOSURE16: louro_free((LouroExpression*)n->parameters[15]);     /* Falls through. */
+        case LOURO_FUNCTION15: case LOURO_CLOSURE15: louro_free((LouroExpression*)n->parameters[14]);     /* Falls through. */
+        case LOURO_FUNCTION14: case LOURO_CLOSURE14: louro_free((LouroExpression*)n->parameters[13]);     /* Falls through. */
+        case LOURO_FUNCTION13: case LOURO_CLOSURE13: louro_free((LouroExpression*)n->parameters[12]);     /* Falls through. */
+        case LOURO_FUNCTION12: case LOURO_CLOSURE12: louro_free((LouroExpression*)n->parameters[11]);     /* Falls through. */
+        case LOURO_FUNCTION11: case LOURO_CLOSURE11: louro_free((LouroExpression*)n->parameters[10]);     /* Falls through. */
+        case LOURO_FUNCTION10: case LOURO_CLOSURE10: louro_free((LouroExpression*)n->parameters[9]);     /* Falls through. */
+        case LOURO_FUNCTION9: case LOURO_CLOSURE9: louro_free((LouroExpression*)n->parameters[8]);     /* Falls through. */
+        case LOURO_FUNCTION8: case LOURO_CLOSURE8: louro_free((LouroExpression*)n->parameters[7]);     /* Falls through. */
         case LOURO_FUNCTION7: case LOURO_CLOSURE7: louro_free((LouroExpression*)n->parameters[6]);     /* Falls through. */
         case LOURO_FUNCTION6: case LOURO_CLOSURE6: louro_free((LouroExpression*)n->parameters[5]);     /* Falls through. */
         case LOURO_FUNCTION5: case LOURO_CLOSURE5: louro_free((LouroExpression*)n->parameters[4]);     /* Falls through. */
@@ -273,9 +294,11 @@ static inline void next_token(state *s) {
             if (best_match->type & LOURO_OPERATOR) {
                 s->type = TOK_OPERATOR;
                 s->function = best_match->address;
-                s->op_precedence = (best_match->type >> 12);
-                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY | LOURO_FLAG_LAZY);
+                s->op_precedence = (best_match->type >> 16);
+                s->op_flags = best_match->type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY | LOURO_FLAG_LAZY | LOURO_FLAG_QUATERNARY);
                 s->op_separator = best_match->separator;
+                s->op_separator2 = best_match->separator2;
+                s->op_separator3 = best_match->separator3;
                 return;
             } else {
                 switch(TYPE_MASK(best_match->type)) {
@@ -283,11 +306,9 @@ static inline void next_token(state *s) {
                         s->type = TOK_VARIABLE;
                         s->bound = (const double*)best_match->address;
                         return;
-                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3:
-                    case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
+                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15: case LOURO_CLOSURE16:
                         s->context = best_match->context;
-                    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3:
-                    case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
+                    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15: case LOURO_FUNCTION16:
                         s->type = best_match->type;
                         s->function = best_match->address;
                         return;
@@ -302,9 +323,30 @@ static inline void next_token(state *s) {
                 if (var->separator) {
                     int len = strlen(var->separator);
                     if (strncmp(s->next, var->separator, len) == 0) {
+                        if (isalpha(var->separator[0]) && (isalnum(s->next[len]) || s->next[len] == '_')) continue;
                         s->next += len;
                         s->type = TOK_TERNARY_SEP;
                         s->op_separator = var->separator; // Pass which separator was found
+                        return;
+                    }
+                }
+                if (var->separator2) {
+                    int len = strlen(var->separator2);
+                    if (strncmp(s->next, var->separator2, len) == 0) {
+                        if (isalpha(var->separator2[0]) && (isalnum(s->next[len]) || s->next[len] == '_')) continue;
+                        s->next += len;
+                        s->type = TOK_TERNARY_SEP;
+                        s->op_separator = var->separator2; // Pass which separator was found
+                        return;
+                    }
+                }
+                if (var->separator3) {
+                    int len = strlen(var->separator3);
+                    if (strncmp(s->next, var->separator3, len) == 0) {
+                        if (isalpha(var->separator3[0]) && (isalnum(s->next[len]) || s->next[len] == '_')) continue;
+                        s->next += len;
+                        s->type = TOK_TERNARY_SEP;
+                        s->op_separator = var->separator3; // Pass which separator was found
                         return;
                     }
                 }
@@ -391,10 +433,8 @@ static inline LouroExpression *base(state *s) {
             if(!ret->parameters[0]) { louro_free(ret);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             break;
 
-        case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4:
-        case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
-        case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4:
-        case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
+        case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15: case LOURO_FUNCTION16:
+        case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15: case LOURO_CLOSURE16:
             arity = ARITY(s->type);
             ret = new_expr(s->type, 0);
             if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
@@ -457,7 +497,10 @@ static inline LouroExpression *parse_prefix(state *s) {
         const void *func = s->function;
         int prec = s->op_precedence;
         const char *sep = s->op_separator;
+        const char *sep2 = s->op_separator2;
+        const char *sep3 = s->op_separator3;
         int is_ternary = (s->op_flags & LOURO_FLAG_TERNARY);
+        int is_quaternary = (s->op_flags & LOURO_FLAG_QUATERNARY);
         int lazy_flag  = (s->op_flags & LOURO_FLAG_LAZY);
         
         s->expecting_operator = 0;
@@ -466,6 +509,40 @@ static inline LouroExpression *parse_prefix(state *s) {
         LouroExpression *operand = parse_expr_dynamic(s, prec);
         if (!operand)  { printf("NULL at %d\n", __LINE__); return NULL; };
         
+        if (is_quaternary) {
+            if (s->type != TOK_TERNARY_SEP || s->op_separator != sep) {
+                louro_free(operand); { printf("NULL at %d\n", __LINE__); return NULL; };
+            }
+            s->expecting_operator = 0;
+            next_token(s);
+            
+            LouroExpression *operand2 = parse_expr_dynamic(s, 0);
+            if (!operand2) { louro_free(operand); { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            
+            if (s->type != TOK_TERNARY_SEP || s->op_separator != sep2) {
+                louro_free(operand); louro_free(operand2); { printf("NULL at %d\n", __LINE__); return NULL; };
+            }
+            s->expecting_operator = 0;
+            next_token(s);
+            
+            LouroExpression *operand3 = parse_expr_dynamic(s, prec);
+            if (!operand3) { louro_free(operand); louro_free(operand2); { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            
+            if (s->type != TOK_TERNARY_SEP || s->op_separator != sep3) {
+                louro_free(operand); louro_free(operand2); louro_free(operand3); { printf("NULL at %d\n", __LINE__); return NULL; };
+            }
+            s->expecting_operator = 1;
+            next_token(s);
+            
+            LouroExpression *ret = new_expr(LOURO_FUNCTION3 | LOURO_FLAG_PURE | lazy_flag, 0);
+            if (!ret) { louro_free(operand); louro_free(operand2); louro_free(operand3); { printf("NULL at %d\n", __LINE__); return NULL; }; }
+            ret->function = func;
+            ret->parameters[0] = operand;
+            ret->parameters[1] = operand2;
+            ret->parameters[2] = operand3;
+            return ret;
+        }
+
         if (is_ternary) {
             /* Expect the separator (e.g. "else") */
             if (s->type != TOK_TERNARY_SEP || s->op_separator != sep) {
@@ -604,6 +681,18 @@ static inline double louro_evaluate(const LouroExpression *n) {
                         return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2); }
                     case 4: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}, l1={louro_thunk_wrapper,n->parameters[1]}, l2={louro_thunk_wrapper,n->parameters[2]}, l3={louro_thunk_wrapper,n->parameters[3]};
                         return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3); }
+                    case 5: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4); }
+                    case 6: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5); }
+                    case 7: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6); }
+                    case 8: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7); }
+                    case 9: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8); }
+                    case 10: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9); }
+                    case 11: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9,&l10); }
+                    case 12: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9,&l10,&l11); }
+                    case 13: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9,&l10,&l11,&l12); }
+                    case 14: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; LouroLazy l13={louro_thunk_wrapper,n->parameters[13]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9,&l10,&l11,&l12,&l13); }
+                    case 15: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; LouroLazy l13={louro_thunk_wrapper,n->parameters[13]}; LouroLazy l14={louro_thunk_wrapper,n->parameters[14]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9,&l10,&l11,&l12,&l13,&l14); }
+                    case 16: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; LouroLazy l13={louro_thunk_wrapper,n->parameters[13]}; LouroLazy l14={louro_thunk_wrapper,n->parameters[14]}; LouroLazy l15={louro_thunk_wrapper,n->parameters[15]}; return ((double(*)(LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*,LouroLazy*))n->function)(&l0,&l1,&l2,&l3,&l4,&l5,&l6,&l7,&l8,&l9,&l10,&l11,&l12,&l13,&l14,&l15); }
                     default: return NAN;
                 }
             }
@@ -636,6 +725,42 @@ static inline double louro_evaluate(const LouroExpression *n) {
                 case 7: {
                     double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6);
                     return LR_FUN(double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6);
+                }
+                case 8: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7);
+                    return LR_FUN(double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7);
+                }
+                case 9: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8);
+                }
+                case 10: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9);
+                }
+                case 11: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10);
+                }
+                case 12: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11);
+                }
+                case 13: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12);
+                }
+                case 14: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13);
+                }
+                case 15: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14);
+                }
+                case 16: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14); double m15 = M(15);
+                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15);
                 }
                 default: return NAN;
             }
@@ -671,6 +796,42 @@ static inline double louro_evaluate(const LouroExpression *n) {
                 case 7: {
                     double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6);
                     return LR_FUN(void*, double, double, double, double, double, double, double)(n->parameters[7], m0, m1, m2, m3, m4, m5, m6);
+                }
+                case 8: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double)(n->parameters[8], m0, m1, m2, m3, m4, m5, m6, m7);
+                }
+                case 9: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double)(n->parameters[9], m0, m1, m2, m3, m4, m5, m6, m7, m8);
+                }
+                case 10: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double)(n->parameters[10], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9);
+                }
+                case 11: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[11], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10);
+                }
+                case 12: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[12], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11);
+                }
+                case 13: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[13], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12);
+                }
+                case 14: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[14], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13);
+                }
+                case 15: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[15], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14);
+                }
+                case 16: {
+                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14); double m15 = M(15);
+                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[16], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15);
                 }
                 default: return NAN;
             }
