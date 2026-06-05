@@ -75,6 +75,7 @@ int main(int argc, char* argv[]) {
 
     LouroVariable static_memory[] = {
         LOURO_STD,
+        LOURO_MATH,
         LOURO_URB,
         LOURO_VAR("global", &global)
     };

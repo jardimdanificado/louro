@@ -1,11 +1,27 @@
 *.o
 *.a
 *.so
+*.exe
+
+.vscode/
+
+# louco Transpiler
+louco_transpiler
+tmp_aot_compiler
+
+# Examples Binaries
 examples/tests/run_tests
 examples/tests/test
-examples/01_basic
-examples/02_variables
 examples/test_*
 examples/benchmark
-*.exe
-.vscode/
+examples/01_basic
+examples/02_variables
+examples/03_lists
+examples/05_custom_operators
+examples/06_benchmark
+examples/07_wasm_wat
+examples/example_lazy_ternary
+
+# Louco Tutorial Generated Files
+examples/louco_tutorial/out
+examples/louco_tutorial/out.c

@@ -78,11 +78,11 @@ LOURO_OP_LAZY("&&", my_lazy_and, 20);
 
 ### AOT Code Generator (`louco`)
 
-Louro includes a powerful Ahead-Of-Time (AOT) compiler called `louco` (Louro Code Generator). It reads an Arara script and transpiles it into hyper-optimized, native C code. 
+Louro includes a powerful Ahead-Of-Time (AOT) compiler called `louco` (Louro Code Generator). It reads a script and transpiles it into native C code. 
 
 **Usage:**
 ```bash
-./louco.sh -e my_env.h input_script.txt -o out.c
+./louco -e my_env.h input_script.txt -o out.c
 ```
 The AOT transpiler guarantees **100% semantic compatibility** with the interpreter. It uses deterministic 2-pass inline thunk generation to compile `_LAZY` operators into zero-overhead native C short-circuiting logic!
 
