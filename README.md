@@ -49,8 +49,8 @@ int main() {
 
 ## Built-in Macros
 
-- **`LOURO_PURE("name", function, arity)`**: Injects a pure function (e.g., `sin`, `sqrt`). Pure functions with constant arguments will be pre-calculated during compilation to save CPU cycles.
-- **`LOURO_IMPURE("name", function, arity)`**: Injects an impure function (e.g., `rand`). Impure functions are never pre-calculated and will always execute at runtime.
+- **`LOURO_PURE("name", function, arity)`**: Injects a pure function (e.g., `sin`, `sqrt`). The `arity` (number of arguments) can be up to **16**. Pure functions with constant arguments will be pre-calculated during compilation to save CPU cycles.
+- **`LOURO_IMPURE("name", function, arity)`**: Injects an impure function (e.g., `rand`). The `arity` can be up to **16**. Impure functions are never pre-calculated and will always execute at runtime.
 - **`LOURO_VAR("name", pointer)`**: Injects a bound variable using a pointer to a `double`.
 - **`LOURO_OP("symbol", function, precedence)`**: Registers a custom dynamic operator (e.g., `+`, `mod`, `=>`) with a specific precedence (left-associative, infix).
 - **`LOURO_OP_RIGHT("symbol", function, precedence)`**: Registers a right-associative custom dynamic operator (e.g., `**`, `^`).
@@ -58,16 +58,20 @@ int main() {
 - **`LOURO_OP_POSTFIX("symbol", function, precedence)`**: Registers a postfix unary operator (e.g., `x!`).
 - **`LOURO_TERNARY("sym", "sep", function, precedence)`**: Registers a ternary infix operator (e.g., `a ? b : c`).
 - **`LOURO_TERNARY_PREFIX("sym", "sep", function, precedence)`**: Registers a ternary prefix operator (e.g., `if a else b`).
+- **`LOURO_QUATERNARY_PREFIX("sym", "sep1", "sep2", "sep3", function, precedence)`**: Registers a quaternary prefix operator.
+- **`LOURO_QUATERNARY_PREFIX_LAZY("sym", "sep1", "sep2", "sep3", function, precedence)`**: Registers a lazy quaternary prefix operator (e.g., `if a then b else c end`).
 
 ### Lazy Evaluation (Short-Circuiting)
 
-Louro supports universal lazy evaluation for any operator or function. This allows you to implement short-circuiting (like C's `&&` or `||`) where arguments are only evaluated if necessary.
+Louro supports lazy evaluation for any operator or function. This allows you to implement short-circuiting (like C's `&&` or `||`) where arguments are only evaluated if necessary.
 
-To use it, append `_LAZY` to any macro (e.g., `LOURO_OP_LAZY`, `LOURO_TERNARY_LAZY`). Your C function will receive opaque `LouroLazy*` pointers instead of `double` values. You evaluate them manually using `louro_lazy_eval()`:
+To use it, use the explicit `_LAZY` variants of the macros: `LOURO_PURE_LAZY`, `LOURO_IMPURE_LAZY`, `LOURO_OP_LAZY`, `LOURO_OP_PREFIX_LAZY`, `LOURO_TERNARY_LAZY`, `LOURO_TERNARY_PREFIX_LAZY`, or `LOURO_QUATERNARY_PREFIX_LAZY`.
+
+Your C function will receive opaque pointers cast to `double` values. You evaluate them manually using `louro_lazy_eval()`:
 
 ```c
 // Evaluates 'right' only if 'left' is truthy (C '&&' semantics)
-static double my_lazy_and(LouroLazy *left, LouroLazy *right) {
+static double my_lazy_and(double left, double right) {
     if (!louro_lazy_eval(left)) return 0.0;
     return louro_lazy_eval(right);
 }
@@ -76,15 +80,33 @@ static double my_lazy_and(LouroLazy *left, LouroLazy *right) {
 LOURO_OP_LAZY("&&", my_lazy_and, 20);
 ```
 
-### AOT Code Generator (`louco`)
+### AOT Compiler (`louco`)
 
-Louro includes a powerful Ahead-Of-Time (AOT) compiler called `louco` (Louro Code Generator). It reads a script and transpiles it into native C code. 
+Louro includes an AOT compiler called `louco` (Louro Compiler). It reads a script and transpiles it into C code. 
 
 **Usage:**
 ```bash
 ./louco -e my_env.h input_script.txt -o out.c
 ```
-The AOT transpiler guarantees **100% semantic compatibility** with the interpreter. It uses deterministic 2-pass inline thunk generation to compile `_LAZY` operators into zero-overhead native C short-circuiting logic!
+
+**Environment Header (`-e`)**: 
+The `louco` transpiler requires a C header file defining your runtime environment. This header must define a `louro_exports` array containing all functions, variables, and operators available to the script.
+
+Example `my_env.h`:
+```c
+#include "louro.h"
+#include "libs/louro_std.h"
+
+double speed = 2.5;
+
+// The exports array must be named louro_exports
+LouroVariable louro_exports[] = {
+    LOURO_STD,
+    LOURO_VAR("speed", &speed)
+};
+```
+
+The AOT transpiler guarantees **100% semantic compatibility** with the interpreter. It uses deterministic 2-pass inline thunk generation to compile `_LAZY` operators into C short-circuiting logic!
 
 ## License
 Louro is provided under the Zlib license. See the top of `louro.h` for more details.

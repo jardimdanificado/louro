@@ -20,7 +20,7 @@ static inline double lr_cmp_ge(double a, double b)  {return a >= b ? 1.0 : 0.0;}
 static inline double lr_cmp_eq(double a, double b)  {return a == b ? 1.0 : 0.0;}
 static inline double lr_cmp_ne(double a, double b)  {return a != b ? 1.0 : 0.0;}
 
-static inline double lr_lazy_ifelse(LouroLazy *cond, LouroLazy *on_true, LouroLazy *on_false) {
+static inline double lr_lazy_ifelse(double cond, double on_true, double on_false) {
     if (louro_lazy_eval(cond) != 0.0) {
         return louro_lazy_eval(on_true);
     } else {
@@ -28,7 +28,7 @@ static inline double lr_lazy_ifelse(LouroLazy *cond, LouroLazy *on_true, LouroLa
     }
 }
 
-static inline double lr_lazy_and(LouroLazy *left, LouroLazy *right) {
+static inline double lr_lazy_and(double left, double right) {
     if (louro_lazy_eval(left) == 0.0) return 0.0;
     return louro_lazy_eval(right);
 }

@@ -100,7 +100,7 @@ static void louro_emit_c(const LouroExpression *n, int start_id) {
         
         printf("%s(", c_func);
         for (int i = 0; i < arity; i++) {
-            printf("&(LouroLazy){ __thunk_%d, NULL }", my_base + i);
+            printf("(double)(uintptr_t)&(LouroLazy){ __thunk_%d, NULL }", my_base + i);
             if (i < arity - 1) printf(", ");
         }
         printf(")");

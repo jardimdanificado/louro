@@ -12,13 +12,13 @@ static double my_if_prefix(double condition, double false_val) {
 }
 
 // 3. Lazy AND Operator: a && b (Only evaluates b if a is truthy)
-static double my_lazy_and(LouroLazy *left, LouroLazy *right) {
+static double my_lazy_and(double left, double right) {
     if (!louro_lazy_eval(left)) return 0.0;
     return louro_lazy_eval(right);
 }
 
 // 4. Lazy Ternary Operator: a IF b ELSE c (Only evaluates the chosen branch)
-static double my_lazy_ternary(LouroLazy *condition, LouroLazy *true_val, LouroLazy *false_val) {
+static double my_lazy_ternary(double condition, double true_val, double false_val) {
     if (louro_lazy_eval(condition) != 0.0) {
         return louro_lazy_eval(true_val);
     }
