@@ -1,6 +1,6 @@
 # Louro
 
-Louro is a heavily modified fork of *TinyExpr* designed to be a tiny Domain Specific Language creation library. You must manually register all operators and functions that you want the language to recognize. For convenience, standard math libraries are provided in `libs/`.
+Louro is a heavily modified fork of *TinyExpr* designed to be a tiny Domain Specific Language creation library. You must manually register all operators and functions that you want the language to recognize.
 
 ## Usage
 
@@ -49,13 +49,36 @@ int main() {
 
 ## Built-in Macros
 
-- **`LOURO_PURE("name", function, arity)`**: Injects a pure function (e.g., `sin`, `sqrt`). Pure functions with constant arguments will be pre-calculated during compilation to save CPU cycles.
-- **`LOURO_IMPURE("name", function, arity)`**: Injects an impure function (e.g., `rand`). Impure functions are never pre-calculated and will always execute at runtime.
+- **`LOURO_PURE("name", function, arity)`**: Injects a pure function (e.g., `sin`, `sqrt`). The `arity` (number of arguments) can be up to **16**. Pure functions with constant arguments will be pre-calculated during compilation to save CPU cycles.
+- **`LOURO_IMPURE("name", function, arity)`**: Injects an impure function (e.g., `rand`). The `arity` can be up to **16**. Impure functions are never pre-calculated and will always execute at runtime.
 - **`LOURO_VAR("name", pointer)`**: Injects a bound variable using a pointer to a `double`.
 - **`LOURO_OP("symbol", function, precedence)`**: Registers a custom dynamic operator (e.g., `+`, `mod`, `=>`) with a specific precedence (left-associative, infix).
 - **`LOURO_OP_RIGHT("symbol", function, precedence)`**: Registers a right-associative custom dynamic operator (e.g., `**`, `^`).
 - **`LOURO_OP_PREFIX("symbol", function, precedence)`**: Registers a prefix unary operator (e.g., `!x`, `-x`).
 - **`LOURO_OP_POSTFIX("symbol", function, precedence)`**: Registers a postfix unary operator (e.g., `x!`).
+- **`LOURO_TERNARY("sym", "sep", function, precedence)`**: Registers a ternary infix operator (e.g., `a ? b : c`).
+- **`LOURO_TERNARY_PREFIX("sym", "sep", function, precedence)`**: Registers a ternary prefix operator (e.g., `if a else b`).
+- **`LOURO_QUATERNARY_PREFIX("sym", "sep1", "sep2", "sep3", function, precedence)`**: Registers a quaternary prefix operator.
+- **`LOURO_QUATERNARY_PREFIX_LAZY("sym", "sep1", "sep2", "sep3", function, precedence)`**: Registers a lazy quaternary prefix operator (e.g., `if a then b else c end`).
+
+### Lazy Evaluation (Short-Circuiting)
+
+Louro supports lazy evaluation for any operator or function. This allows you to implement short-circuiting (like C's `&&` or `||`) where arguments are only evaluated if necessary.
+
+To use it, use the explicit `_LAZY` variants of the macros: `LOURO_PURE_LAZY`, `LOURO_IMPURE_LAZY`, `LOURO_OP_LAZY`, `LOURO_OP_PREFIX_LAZY`, `LOURO_TERNARY_LAZY`, `LOURO_TERNARY_PREFIX_LAZY`, or `LOURO_QUATERNARY_PREFIX_LAZY`.
+
+Your C function will receive opaque pointers cast to `double` values. You evaluate them manually using `louro_lazy_eval()`:
+
+```c
+// Evaluates 'right' only if 'left' is truthy (C '&&' semantics)
+static double my_lazy_and(double left, double right) {
+    if (!louro_lazy_eval(left)) return 0.0;
+    return louro_lazy_eval(right);
+}
+
+// Register it
+LOURO_OP_LAZY("&&", my_lazy_and, 20);
+```
 
 ## License
 Louro is provided under the Zlib license. See the top of `louro.h` for more details.
