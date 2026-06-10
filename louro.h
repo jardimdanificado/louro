@@ -63,13 +63,11 @@ enum {
     LOURO_FUNCTION4, LOURO_FUNCTION5, LOURO_FUNCTION6, LOURO_FUNCTION7,
     LOURO_FUNCTION8, LOURO_FUNCTION9, LOURO_FUNCTION10, LOURO_FUNCTION11,
     LOURO_FUNCTION12, LOURO_FUNCTION13, LOURO_FUNCTION14, LOURO_FUNCTION15,
-    LOURO_FUNCTION16,
 
     LOURO_CLOSURE0 = 64, LOURO_CLOSURE1, LOURO_CLOSURE2, LOURO_CLOSURE3,
     LOURO_CLOSURE4, LOURO_CLOSURE5, LOURO_CLOSURE6, LOURO_CLOSURE7,
     LOURO_CLOSURE8, LOURO_CLOSURE9, LOURO_CLOSURE10, LOURO_CLOSURE11,
     LOURO_CLOSURE12, LOURO_CLOSURE13, LOURO_CLOSURE14, LOURO_CLOSURE15,
-    LOURO_CLOSURE16,
 
     LOURO_FLAG_PURE = 128,
     LOURO_OPERATOR = 256,
@@ -120,9 +118,18 @@ typedef struct LouroVariable {
 #define LOURO_QUATERNARY_PREFIX(name, sep, sep2, sep3, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_QUATERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, sep, sep2, sep3}
 #define LOURO_QUATERNARY_PREFIX_LAZY(name, sep, sep2, sep3, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_QUATERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION3 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, sep, sep2, sep3}
 
+/* Dynamic capacity context support */
+typedef LouroVariable (*LouroLookupCallback)(void *context, const char *name, int len);
+
+/* Parses the input expression with dynamic lookup support. */
+/* Returns NULL on error. */
+static inline LouroExpression *louro_compile_ex(const char *expression, const LouroVariable *variables, int var_count, LouroLookupCallback lookup_cb, void *lookup_ctx, int *error);
+
 /* Parses the input expression. */
 /* Returns NULL on error. */
-static inline LouroExpression *louro_compile(const char *expression, const LouroVariable *variables, int var_count, int *error);
+static inline LouroExpression *louro_compile(const char *expression, const LouroVariable *variables, int var_count, int *error) {
+    return louro_compile_ex(expression, variables, var_count, NULL, NULL, error);
+}
 
 /* Evaluates the expression. */
 static inline double louro_evaluate(const LouroExpression *n);
@@ -144,7 +151,7 @@ static inline void louro_free(LouroExpression *n);
 typedef double (*lr_fun2)(double, double);
 
 enum {
-    TOK_NULL = LOURO_CLOSURE16+1, TOK_ERROR, TOK_END, TOK_SEP,
+    TOK_NULL = LOURO_CLOSURE15+1, TOK_ERROR, TOK_END, TOK_SEP,
     TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR,
     TOK_TERNARY_SEP
 };
@@ -162,6 +169,9 @@ typedef struct state {
 
     const LouroVariable *lookup;
     int lookup_len;
+    
+    LouroLookupCallback lookup_cb;
+    void *lookup_ctx;
     
     int expecting_operator;
     int op_precedence;
@@ -201,7 +211,6 @@ static inline LouroExpression *new_expr(const int type, const LouroExpression *p
 static inline void louro_free_parameters(LouroExpression *n) {
     if (!n) return;
     switch (TYPE_MASK(n->type)) {
-        case LOURO_FUNCTION16: case LOURO_CLOSURE16: louro_free((LouroExpression*)n->parameters[15]);     /* Falls through. */
         case LOURO_FUNCTION15: case LOURO_CLOSURE15: louro_free((LouroExpression*)n->parameters[14]);     /* Falls through. */
         case LOURO_FUNCTION14: case LOURO_CLOSURE14: louro_free((LouroExpression*)n->parameters[13]);     /* Falls through. */
         case LOURO_FUNCTION13: case LOURO_CLOSURE13: louro_free((LouroExpression*)n->parameters[12]);     /* Falls through. */
@@ -308,9 +317,9 @@ static inline void next_token(state *s) {
                         s->type = TOK_VARIABLE;
                         s->bound = (const double*)best_match->address;
                         return;
-                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15: case LOURO_CLOSURE16:
+                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
                         s->context = best_match->context;
-                    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15: case LOURO_FUNCTION16:
+                    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
                         s->type = best_match->type;
                         s->function = best_match->address;
                         return;
@@ -364,8 +373,42 @@ static inline void next_token(state *s) {
             case ' ': case '\t': case '\n': case '\r': s->next++; matched = 0; break;
             default: 
                 // If it's an unrecognized alphanumeric, it's an error (e.g. undeclared variable)
+                // OR we can dynamically look it up if lookup_cb is provided.
                 if (isalpha(s->next[0])) {
+                    const char *token_start = s->next;
                     while (isalpha(s->next[0]) || isdigit(s->next[0]) || (s->next[0] == '_')) s->next++;
+                    int len = (int)(s->next - token_start);
+                    
+                    if (s->lookup_cb) {
+                        LouroVariable var = s->lookup_cb(s->lookup_ctx, token_start, len);
+                        if (var.name != NULL) { // Using name != NULL as a valid flag
+                            if (var.type & LOURO_OPERATOR) {
+                                s->type = TOK_OPERATOR;
+                                s->function = var.address;
+                                s->op_precedence = (var.type >> 16);
+                                s->op_flags = var.type & (LOURO_FLAG_RIGHT_ASSOC | LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY | LOURO_FLAG_LAZY | LOURO_FLAG_QUATERNARY);
+                                s->op_separator = var.separator;
+                                s->op_separator2 = var.separator2;
+                                s->op_separator3 = var.separator3;
+                            } else {
+                                switch(TYPE_MASK(var.type)) {
+                                    case LOURO_VARIABLE:
+                                        s->type = TOK_VARIABLE;
+                                        s->bound = (const double*)var.address;
+                                        break;
+                                    case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
+                                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
+                                        s->type = var.type;
+                                        s->function = var.address;
+                                        break;
+                                    default:
+                                        s->type = TOK_ERROR;
+                                        break;
+                                }
+                            }
+                            if (s->type != TOK_ERROR) return;
+                        }
+                    }
                 } else {
                     s->next++; 
                 }
@@ -435,8 +478,8 @@ static inline LouroExpression *base(state *s) {
             if(!ret->parameters[0]) { louro_free(ret);  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             break;
 
-        case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15: case LOURO_FUNCTION16:
-        case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15: case LOURO_CLOSURE16:
+        case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
+        case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
             arity = ARITY(s->type);
             ret = new_expr(s->type, 0);
             if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
@@ -672,6 +715,8 @@ static inline double louro_evaluate(const LouroExpression *n) {
 
         case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3:
         case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7:
+        case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11:
+        case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
             if (IS_LAZY(n->type)) {
                 switch(ARITY(n->type)) {
                     case 0: return LR_FUN(void)();
@@ -690,7 +735,6 @@ static inline double louro_evaluate(const LouroExpression *n) {
                     case 13: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; return ((double(*)(double,double,double,double,double,double,double,double,double,double,double,double,double))n->function)((double)(uintptr_t)&l0,(double)(uintptr_t)&l1,(double)(uintptr_t)&l2,(double)(uintptr_t)&l3,(double)(uintptr_t)&l4,(double)(uintptr_t)&l5,(double)(uintptr_t)&l6,(double)(uintptr_t)&l7,(double)(uintptr_t)&l8,(double)(uintptr_t)&l9,(double)(uintptr_t)&l10,(double)(uintptr_t)&l11,(double)(uintptr_t)&l12); }
                     case 14: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; LouroLazy l13={louro_thunk_wrapper,n->parameters[13]}; return ((double(*)(double,double,double,double,double,double,double,double,double,double,double,double,double,double))n->function)((double)(uintptr_t)&l0,(double)(uintptr_t)&l1,(double)(uintptr_t)&l2,(double)(uintptr_t)&l3,(double)(uintptr_t)&l4,(double)(uintptr_t)&l5,(double)(uintptr_t)&l6,(double)(uintptr_t)&l7,(double)(uintptr_t)&l8,(double)(uintptr_t)&l9,(double)(uintptr_t)&l10,(double)(uintptr_t)&l11,(double)(uintptr_t)&l12,(double)(uintptr_t)&l13); }
                     case 15: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; LouroLazy l13={louro_thunk_wrapper,n->parameters[13]}; LouroLazy l14={louro_thunk_wrapper,n->parameters[14]}; return ((double(*)(double,double,double,double,double,double,double,double,double,double,double,double,double,double,double))n->function)((double)(uintptr_t)&l0,(double)(uintptr_t)&l1,(double)(uintptr_t)&l2,(double)(uintptr_t)&l3,(double)(uintptr_t)&l4,(double)(uintptr_t)&l5,(double)(uintptr_t)&l6,(double)(uintptr_t)&l7,(double)(uintptr_t)&l8,(double)(uintptr_t)&l9,(double)(uintptr_t)&l10,(double)(uintptr_t)&l11,(double)(uintptr_t)&l12,(double)(uintptr_t)&l13,(double)(uintptr_t)&l14); }
-                    case 16: { LouroLazy l0={louro_thunk_wrapper,n->parameters[0]}; LouroLazy l1={louro_thunk_wrapper,n->parameters[1]}; LouroLazy l2={louro_thunk_wrapper,n->parameters[2]}; LouroLazy l3={louro_thunk_wrapper,n->parameters[3]}; LouroLazy l4={louro_thunk_wrapper,n->parameters[4]}; LouroLazy l5={louro_thunk_wrapper,n->parameters[5]}; LouroLazy l6={louro_thunk_wrapper,n->parameters[6]}; LouroLazy l7={louro_thunk_wrapper,n->parameters[7]}; LouroLazy l8={louro_thunk_wrapper,n->parameters[8]}; LouroLazy l9={louro_thunk_wrapper,n->parameters[9]}; LouroLazy l10={louro_thunk_wrapper,n->parameters[10]}; LouroLazy l11={louro_thunk_wrapper,n->parameters[11]}; LouroLazy l12={louro_thunk_wrapper,n->parameters[12]}; LouroLazy l13={louro_thunk_wrapper,n->parameters[13]}; LouroLazy l14={louro_thunk_wrapper,n->parameters[14]}; LouroLazy l15={louro_thunk_wrapper,n->parameters[15]}; return ((double(*)(double,double,double,double,double,double,double,double,double,double,double,double,double,double,double,double))n->function)((double)(uintptr_t)&l0,(double)(uintptr_t)&l1,(double)(uintptr_t)&l2,(double)(uintptr_t)&l3,(double)(uintptr_t)&l4,(double)(uintptr_t)&l5,(double)(uintptr_t)&l6,(double)(uintptr_t)&l7,(double)(uintptr_t)&l8,(double)(uintptr_t)&l9,(double)(uintptr_t)&l10,(double)(uintptr_t)&l11,(double)(uintptr_t)&l12,(double)(uintptr_t)&l13,(double)(uintptr_t)&l14,(double)(uintptr_t)&l15); }
 
                     default: return NAN;
                 }
@@ -757,15 +801,13 @@ static inline double louro_evaluate(const LouroExpression *n) {
                     double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14);
                     return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14);
                 }
-                case 16: {
-                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14); double m15 = M(15);
-                    return LR_FUN(double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15);
-                }
                 default: return NAN;
             }
 
         case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3:
         case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
+        case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11:
+        case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
             switch(ARITY(n->type)) {
                 case 0: return LR_FUN(void*)(n->parameters[0]);
                 case 1: {
@@ -828,10 +870,6 @@ static inline double louro_evaluate(const LouroExpression *n) {
                     double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14);
                     return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[15], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14);
                 }
-                case 16: {
-                    double m0 = M(0); double m1 = M(1); double m2 = M(2); double m3 = M(3); double m4 = M(4); double m5 = M(5); double m6 = M(6); double m7 = M(7); double m8 = M(8); double m9 = M(9); double m10 = M(10); double m11 = M(11); double m12 = M(12); double m13 = M(13); double m14 = M(14); double m15 = M(15);
-                    return LR_FUN(void*, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double, double)(n->parameters[16], m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15);
-                }
                 default: return NAN;
             }
 
@@ -869,12 +907,14 @@ static inline void optimize(LouroExpression *n) {
 }
 
 
-static inline LouroExpression *louro_compile(const char *expression, const LouroVariable *variables, int var_count, int *error) {
+static inline LouroExpression *louro_compile_ex(const char *expression, const LouroVariable *variables, int var_count, LouroLookupCallback lookup_cb, void *lookup_ctx, int *error) {
     state s = { 0 };
     s.start = s.next = expression;
     s.context = 0;
     s.lookup = variables;
     s.lookup_len = var_count;
+    s.lookup_cb = lookup_cb;
+    s.lookup_ctx = lookup_ctx;
     s.expecting_operator = 0;
 
     next_token(&s);
