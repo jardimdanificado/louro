@@ -80,33 +80,5 @@ static double my_lazy_and(double left, double right) {
 LOURO_OP_LAZY("&&", my_lazy_and, 20);
 ```
 
-### AOT Compiler (`louco`)
-
-Louro includes an AOT compiler called `louco` (Louro Compiler). It reads a script and transpiles it into C code. 
-
-**Usage:**
-```bash
-./louco -e my_env.h input_script.txt -o out.c
-```
-
-**Environment Header (`-e`)**: 
-The `louco` transpiler requires a C header file defining your runtime environment. This header must define a `louro_exports` array containing all functions, variables, and operators available to the script.
-
-Example `my_env.h`:
-```c
-#include "louro.h"
-#include "libs/louro_std.h"
-
-double speed = 2.5;
-
-// The exports array must be named louro_exports
-LouroVariable louro_exports[] = {
-    LOURO_STD,
-    LOURO_VAR("speed", &speed)
-};
-```
-
-The AOT transpiler guarantees **100% semantic compatibility** with the interpreter. It uses deterministic 2-pass inline thunk generation to compile `_LAZY` operators into C short-circuiting logic!
-
 ## License
 Louro is provided under the Zlib license. See the top of `louro.h` for more details.
