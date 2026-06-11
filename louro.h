@@ -530,7 +530,7 @@ static inline LouroExpression *base(state *s) {
             ret = new_expr(0, 0);
             if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             s->type = TOK_ERROR;
-            ret->value = NAN; // using NAN requires math.h but louro evaluate returns NAN anyway. We'll use 0.0/0.0 if NAN isn't available? Wait, louro.h doesn't include math.h at the top, but it uses fmod etc. It's fine.
+            ret->value = NAN;
             break;
     }
 
