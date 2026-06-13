@@ -59,7 +59,6 @@ int main() {
 - **`LOURO_TERNARY("sym", "sep", function, precedence)`**: Registers a ternary infix operator (e.g., `a ? b : c`).
 - **`LOURO_TERNARY_PREFIX("sym", "sep", function, precedence)`**: Registers a ternary prefix operator (e.g., `if a else b`).
 - **`LOURO_QUATERNARY_PREFIX("sym", "sep1", "sep2", "sep3", function, precedence)`**: Registers a quaternary prefix operator.
-- **`LOURO_QUATERNARY_PREFIX_LAZY("sym", "sep1", "sep2", "sep3", function, precedence)`**: Registers a lazy quaternary prefix operator (e.g., `if a then b else c end`).
 
 ### Lazy Evaluation (Short-Circuiting)
 
