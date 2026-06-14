@@ -11,6 +11,7 @@ static inline double lr_mul(double a, double b) {return a * b;}
 static inline double lr_divide(double a, double b) {return a / b;}
 static inline double lr_negate(double a) {return -a;}
 static inline double lr_separate(double a, double b) {return b;}
+static inline double lr_identity(double a) {return a;}
 
 /* Comparison Wrappers — return 1.0 for true, 0.0 for false */
 static inline double lr_cmp_lt(double a, double b)  {return a <  b ? 1.0 : 0.0;}
@@ -38,6 +39,8 @@ static inline double lr_lazy_and(double left, double right) {
  * You can inject this directly into your context.
  */
 #define LOURO_STD \
+    LOURO_SEP(","), \
+    LOURO_GROUP("(", ")", lr_identity, 0), \
     LOURO_OP("+", lr_add, 30), \
     LOURO_OP("-", lr_sub, 30), \
     LOURO_OP_PREFIX("-", lr_negate, 60), \

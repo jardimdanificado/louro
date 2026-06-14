@@ -1,6 +1,8 @@
 #include "../louro.h"
 #include <stdio.h>
 
+static inline double lr_identity(double a) {return a;}
+
 // 1. Infix Ternary Operator: a ? b : c
 static double my_if_else(double condition, double true_val, double false_val) {
     return condition != 0.0 ? true_val : false_val;
@@ -31,6 +33,8 @@ double x = 1.0;
 int main() {
     // Register our environment
     LouroVariable exports[] = {
+        LOURO_SEP(","),
+        LOURO_GROUP("(", ")", lr_identity, 0),
         LOURO_VAR("x", &x),
         LOURO_TERNARY("?", ":", my_if_else, 10),
         LOURO_TERNARY_PREFIX("if", "else", my_if_prefix, 10),

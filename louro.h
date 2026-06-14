@@ -64,10 +64,11 @@ enum {
     LOURO_FUNCTION8, LOURO_FUNCTION9, LOURO_FUNCTION10, LOURO_FUNCTION11,
     LOURO_FUNCTION12, LOURO_FUNCTION13, LOURO_FUNCTION14, LOURO_FUNCTION15,
 
-    LOURO_CLOSURE0 = 64, LOURO_CLOSURE1, LOURO_CLOSURE2, LOURO_CLOSURE3,
-    LOURO_CLOSURE4, LOURO_CLOSURE5, LOURO_CLOSURE6, LOURO_CLOSURE7,
-    LOURO_CLOSURE8, LOURO_CLOSURE9, LOURO_CLOSURE10, LOURO_CLOSURE11,
-    LOURO_CLOSURE12, LOURO_CLOSURE13, LOURO_CLOSURE14, LOURO_CLOSURE15,
+    // LOURO_CLOSURE0..15 (64-79) — commented out, not used by any lib
+    // LOURO_CLOSURE0 = 64, LOURO_CLOSURE1, LOURO_CLOSURE2, LOURO_CLOSURE3,
+    // LOURO_CLOSURE4, LOURO_CLOSURE5, LOURO_CLOSURE6, LOURO_CLOSURE7,
+    // LOURO_CLOSURE8, LOURO_CLOSURE9, LOURO_CLOSURE10, LOURO_CLOSURE11,
+    // LOURO_CLOSURE12, LOURO_CLOSURE13, LOURO_CLOSURE14, LOURO_CLOSURE15,
 
     LOURO_FLAG_PURE = 128,
     LOURO_OPERATOR = 256,
@@ -118,6 +119,9 @@ typedef struct LouroVariable {
 #define LOURO_QUATERNARY_PREFIX(name, sep, sep2, sep3, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_QUATERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION3 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, sep, sep2, sep3}
 #define LOURO_QUATERNARY_PREFIX_LAZY(name, sep, sep2, sep3, func, prec) {name, (const void*)(func), LOURO_OPERATOR | LOURO_FLAG_QUATERNARY | LOURO_FLAG_PREFIX | LOURO_FUNCTION3 | LOURO_FLAG_PURE | LOURO_FLAG_LAZY | ((prec) << 16), (void*)#func, sep, sep2, sep3}
 
+#define LOURO_GROUP(opener, closer, func, prec) {opener, (const void*)(func), LOURO_OPERATOR | LOURO_FUNCTION1 | LOURO_FLAG_PURE | ((prec) << 16), (void*)#func, closer}
+#define LOURO_SEP(name) {name, 0, 0, 0, NULL}
+
 /* Dynamic capacity context support */
 typedef LouroVariable (*LouroLookupCallback)(void *context, const char *name, int len);
 
@@ -151,8 +155,9 @@ static inline void louro_free(LouroExpression *n);
 typedef double (*lr_fun2)(double, double);
 
 enum {
-    TOK_NULL = LOURO_CLOSURE15+1, TOK_ERROR, TOK_END, TOK_SEP,
-    TOK_OPEN, TOK_CLOSE, TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR,
+    TOK_NULL = 80, TOK_ERROR, TOK_END, TOK_SEP,
+    TOK_OPEN, TOK_CLOSE, TOK_GROUP_CLOSE,
+    TOK_NUMBER, TOK_VARIABLE, TOK_OPERATOR,
     TOK_TERNARY_SEP
 };
 
@@ -179,6 +184,7 @@ typedef struct state {
     const char *op_separator;
     const char *op_separator2;
     const char *op_separator3;
+    const char *group_close;
 } state;
 
 
@@ -186,15 +192,16 @@ typedef struct state {
 
 #define IS_PURE(TYPE) (((TYPE) & LOURO_FLAG_PURE) != 0)
 #define IS_FUNCTION(TYPE) (((TYPE) & LOURO_FUNCTION0) != 0)
-#define IS_CLOSURE(TYPE) (((TYPE) & LOURO_CLOSURE0) != 0)
-#define ARITY(TYPE) ( ((TYPE) & (LOURO_FUNCTION0 | LOURO_CLOSURE0)) ? ((TYPE) & 0x0000001F) : 0 )
+// #define IS_CLOSURE(TYPE) (((TYPE) & LOURO_CLOSURE0) != 0)  // commented out
+#define ARITY(TYPE) ( ((TYPE) & LOURO_FUNCTION0) ? ((TYPE) & 0x0000001F) : 0 )
 #define NEW_EXPR(type, ...) new_expr((type), (const LouroExpression*[]){__VA_ARGS__})
 #define CHECK_NULL(ptr, ...) if ((ptr) == NULL) { __VA_ARGS__;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
 
 static inline LouroExpression *new_expr(const int type, const LouroExpression *parameters[]) {
     const int arity = ARITY(type);
     const int psize = sizeof(void*) * arity;
-    const int size = (sizeof(LouroExpression) - sizeof(void*)) + psize + (IS_CLOSURE(type) ? sizeof(void*) : 0);
+    // const int size = (sizeof(LouroExpression) - sizeof(void*)) + psize + (IS_CLOSURE(type) ? sizeof(void*) : 0);
+    const int size = (sizeof(LouroExpression) - sizeof(void*)) + psize;
     LouroExpression *ret = (LouroExpression*)malloc(size);
     CHECK_NULL(ret);
 
@@ -211,21 +218,21 @@ static inline LouroExpression *new_expr(const int type, const LouroExpression *p
 static inline void louro_free_parameters(LouroExpression *n) {
     if (!n) return;
     switch (TYPE_MASK(n->type)) {
-        case LOURO_FUNCTION15: case LOURO_CLOSURE15: louro_free((LouroExpression*)n->parameters[14]);     /* Falls through. */
-        case LOURO_FUNCTION14: case LOURO_CLOSURE14: louro_free((LouroExpression*)n->parameters[13]);     /* Falls through. */
-        case LOURO_FUNCTION13: case LOURO_CLOSURE13: louro_free((LouroExpression*)n->parameters[12]);     /* Falls through. */
-        case LOURO_FUNCTION12: case LOURO_CLOSURE12: louro_free((LouroExpression*)n->parameters[11]);     /* Falls through. */
-        case LOURO_FUNCTION11: case LOURO_CLOSURE11: louro_free((LouroExpression*)n->parameters[10]);     /* Falls through. */
-        case LOURO_FUNCTION10: case LOURO_CLOSURE10: louro_free((LouroExpression*)n->parameters[9]);     /* Falls through. */
-        case LOURO_FUNCTION9: case LOURO_CLOSURE9: louro_free((LouroExpression*)n->parameters[8]);     /* Falls through. */
-        case LOURO_FUNCTION8: case LOURO_CLOSURE8: louro_free((LouroExpression*)n->parameters[7]);     /* Falls through. */
-        case LOURO_FUNCTION7: case LOURO_CLOSURE7: louro_free((LouroExpression*)n->parameters[6]);     /* Falls through. */
-        case LOURO_FUNCTION6: case LOURO_CLOSURE6: louro_free((LouroExpression*)n->parameters[5]);     /* Falls through. */
-        case LOURO_FUNCTION5: case LOURO_CLOSURE5: louro_free((LouroExpression*)n->parameters[4]);     /* Falls through. */
-        case LOURO_FUNCTION4: case LOURO_CLOSURE4: louro_free((LouroExpression*)n->parameters[3]);     /* Falls through. */
-        case LOURO_FUNCTION3: case LOURO_CLOSURE3: louro_free((LouroExpression*)n->parameters[2]);     /* Falls through. */
-        case LOURO_FUNCTION2: case LOURO_CLOSURE2: louro_free((LouroExpression*)n->parameters[1]);     /* Falls through. */
-        case LOURO_FUNCTION1: case LOURO_CLOSURE1: louro_free((LouroExpression*)n->parameters[0]);
+        case LOURO_FUNCTION15: louro_free((LouroExpression*)n->parameters[14]);     /* Falls through. */
+        case LOURO_FUNCTION14: louro_free((LouroExpression*)n->parameters[13]);     /* Falls through. */
+        case LOURO_FUNCTION13: louro_free((LouroExpression*)n->parameters[12]);     /* Falls through. */
+        case LOURO_FUNCTION12: louro_free((LouroExpression*)n->parameters[11]);     /* Falls through. */
+        case LOURO_FUNCTION11: louro_free((LouroExpression*)n->parameters[10]);     /* Falls through. */
+        case LOURO_FUNCTION10: louro_free((LouroExpression*)n->parameters[9]);     /* Falls through. */
+        case LOURO_FUNCTION9: louro_free((LouroExpression*)n->parameters[8]);     /* Falls through. */
+        case LOURO_FUNCTION8: louro_free((LouroExpression*)n->parameters[7]);     /* Falls through. */
+        case LOURO_FUNCTION7: louro_free((LouroExpression*)n->parameters[6]);     /* Falls through. */
+        case LOURO_FUNCTION6: louro_free((LouroExpression*)n->parameters[5]);     /* Falls through. */
+        case LOURO_FUNCTION5: louro_free((LouroExpression*)n->parameters[4]);     /* Falls through. */
+        case LOURO_FUNCTION4: louro_free((LouroExpression*)n->parameters[3]);     /* Falls through. */
+        case LOURO_FUNCTION3: louro_free((LouroExpression*)n->parameters[2]);     /* Falls through. */
+        case LOURO_FUNCTION2: louro_free((LouroExpression*)n->parameters[1]);     /* Falls through. */
+        case LOURO_FUNCTION1: louro_free((LouroExpression*)n->parameters[0]);
     }
 }
 
@@ -284,6 +291,9 @@ static inline void next_token(state *s) {
                         if (isalnum(s->next[len]) || s->next[len] == '_') continue;
                     }
                     
+                    // Skip LOURO_SEP entries (type=0, address=0) — handled by section 1.7
+                    if (var->type == 0 && var->address == 0) continue;
+                    
                     if (var->type & LOURO_OPERATOR) {
                         if (s->expecting_operator) {
                             if (!(var->type & (LOURO_FLAG_INFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY))) continue;
@@ -317,8 +327,7 @@ static inline void next_token(state *s) {
                         s->type = TOK_VARIABLE;
                         s->bound = (const double*)best_match->address;
                         return;
-                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
-                        s->context = best_match->context;
+                    // case LOURO_CLOSURE0..15: commented out, falls through to FUNCTIONS
                     case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
                         s->type = best_match->type;
                         s->function = best_match->address;
@@ -331,6 +340,11 @@ static inline void next_token(state *s) {
         if (!best_match && s->lookup) {
             for (int i = 0; i < s->lookup_len; ++i) {
                 const LouroVariable *var = &s->lookup[i];
+                /* Skip group entries (separator field is a close delimiter, not a ternary separator) */
+                if ((var->type & LOURO_OPERATOR) && var->separator && var->name) {
+                    int op_flags = var->type & (LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY | LOURO_FLAG_QUATERNARY);
+                    if (!op_flags) continue;
+                }
                 if (var->separator) {
                     int len = strlen(var->separator);
                     if (strncmp(s->next, var->separator, len) == 0) {
@@ -364,14 +378,60 @@ static inline void next_token(state *s) {
             }
         }
 
+        /* 1.6. Match custom group delimiters */
+        if (!best_match && s->lookup) {
+            for (int i = 0; i < s->lookup_len; ++i) {
+                const LouroVariable *var = &s->lookup[i];
+                if (!(var->type & LOURO_OPERATOR)) continue;
+                if (!var->separator || !var->name) continue;
+                /* Only match groups: operators with separator but no infix/prefix/postfix/ternary/quaternary flags */
+                int op_flags = var->type & (LOURO_FLAG_INFIX | LOURO_FLAG_PREFIX | LOURO_FLAG_POSTFIX | LOURO_FLAG_TERNARY | LOURO_FLAG_QUATERNARY);
+                if (op_flags) continue;
+
+                /* Check open separator (= name) */
+                int olen = strlen(var->name);
+                if (strncmp(s->next, var->name, olen) == 0) {
+                    if (isalpha(var->name[0]) && (isalnum(s->next[olen]) || s->next[olen] == '_')) continue;
+                    s->next += olen;
+                    s->type = TOK_OPEN;
+                    s->function = var->address;
+                    s->group_close = var->separator;
+                    return;
+                }
+
+                /* Check close separator */
+                int clen = strlen(var->separator);
+                if (strncmp(s->next, var->separator, clen) == 0) {
+                    if (isalpha(var->separator[0]) && (isalnum(s->next[clen]) || s->next[clen] == '_')) continue;
+                    s->next += clen;
+                    s->type = TOK_GROUP_CLOSE;
+                    s->group_close = var->separator;
+                    return;
+                }
+            }
+        }
+
+        /* 1.7. Match registered separators (LOURO_SEP) */
+        if (!best_match && s->lookup) {
+            for (int i = 0; i < s->lookup_len; ++i) {
+                const LouroVariable *var = &s->lookup[i];
+                if (!var->name) continue;
+                if (var->type != 0 || var->address != 0) continue;
+                int len = strlen(var->name);
+                if (strncmp(s->next, var->name, len) == 0) {
+                    if (isalpha(var->name[0]) && (isalnum(s->next[len]) || s->next[len] == '_')) continue;
+                    s->next += len;
+                    s->type = TOK_SEP;
+                    return;
+                }
+            }
+        }
+
         /* 2. Fallback to builtin structural characters if no custom operator matched. */
         int matched = 1;
         switch (s->next[0]) {
-            case '(': s->type = TOK_OPEN;  s->next++; break;
-            case ')': s->type = TOK_CLOSE; s->next++; break;
-            case ',': s->type = TOK_SEP;   s->function = 0; s->op_precedence = 10; s->op_flags = 0; s->next++; break;
             case ' ': case '\t': case '\n': case '\r': s->next++; matched = 0; break;
-            default: 
+            default:
                 // If it's an unrecognized alphanumeric, it's an error (e.g. undeclared variable)
                 // OR we can dynamically look it up if lookup_cb is provided.
                 if (isalpha(s->next[0])) {
@@ -397,7 +457,7 @@ static inline void next_token(state *s) {
                                         s->bound = (const double*)var.address;
                                         break;
                                     case LOURO_FUNCTION0: case LOURO_FUNCTION1: case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
-                                    case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
+                                    // case LOURO_CLOSURE0..15: commented out
                                         s->type = var.type;
                                         s->function = var.address;
                                         break;
@@ -444,11 +504,11 @@ static inline LouroExpression *base(state *s) {
             break;
 
         case LOURO_FUNCTION0:
-        case LOURO_CLOSURE0:
+            // case LOURO_CLOSURE0: commented out
             ret = new_expr(s->type, 0);
             if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = s->function;
-            if (IS_CLOSURE(s->type)) ret->parameters[0] = s->context;
+            // if (IS_CLOSURE(s->type)) ret->parameters[0] = s->context;  // commented out
             
             s->expecting_operator = 1;
             next_token(s);
@@ -465,11 +525,11 @@ static inline LouroExpression *base(state *s) {
             break;
 
         case LOURO_FUNCTION1:
-        case LOURO_CLOSURE1:
+            // case LOURO_CLOSURE1: commented out
             ret = new_expr(s->type, 0);
             if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = s->function;
-            if (IS_CLOSURE(s->type)) ret->parameters[1] = s->context;
+            // if (IS_CLOSURE(s->type)) ret->parameters[1] = s->context;  // commented out
             
             s->expecting_operator = 0;
             next_token(s);
@@ -479,14 +539,14 @@ static inline LouroExpression *base(state *s) {
             break;
 
         case LOURO_FUNCTION2: case LOURO_FUNCTION3: case LOURO_FUNCTION4: case LOURO_FUNCTION5: case LOURO_FUNCTION6: case LOURO_FUNCTION7: case LOURO_FUNCTION8: case LOURO_FUNCTION9: case LOURO_FUNCTION10: case LOURO_FUNCTION11: case LOURO_FUNCTION12: case LOURO_FUNCTION13: case LOURO_FUNCTION14: case LOURO_FUNCTION15:
-        case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
+        //case LOURO_CLOSURE2: case LOURO_CLOSURE3: case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7: case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11: case LOURO_CLOSURE12: case LOURO_CLOSURE13: case LOURO_CLOSURE14: case LOURO_CLOSURE15:
             arity = ARITY(s->type);
             ret = new_expr(s->type, 0);
             if(!ret) { s->type = TOK_ERROR;  { printf("NULL at %d\n", __LINE__); return NULL; }; }
             ret->function = s->function;
-            if (IS_CLOSURE(s->type)) ret->parameters[arity] = s->context;
+            // if (IS_CLOSURE(s->type)) ret->parameters[arity] = s->context;  // commented out
             
-            s->expecting_operator = 0; // The next token must be '(' (not an operator, structural, fetched in primary mode)
+            s->expecting_operator = 0;
             next_token(s);
 
             if (s->type != TOK_OPEN) {
@@ -503,7 +563,7 @@ static inline LouroExpression *base(state *s) {
                         break;
                     }
                 }
-                if(s->type != TOK_CLOSE || i != arity - 1) {
+                if((s->type != TOK_CLOSE && s->type != TOK_GROUP_CLOSE) || i != arity - 1) {
                     s->type = TOK_ERROR;
                 } else {
                     s->expecting_operator = 1;
@@ -513,17 +573,31 @@ static inline LouroExpression *base(state *s) {
             break;
 
         case TOK_OPEN:
-            s->expecting_operator = 0;
-            next_token(s);
-            ret = parse_expr_dynamic(s, 0);
-            if(!ret)  { printf("NULL at %d\n", __LINE__); return NULL; };
-
-            if (s->type != TOK_CLOSE) {
-                s->type = TOK_ERROR;
-            } else {
-                s->expecting_operator = 1;
+            if (s->group_close) {
+                /* Registered group: save close separator, parse inner expression, expect matching close */
+                const char *expected_close = s->group_close;
+                s->group_close = NULL;
+                s->expecting_operator = 0;
                 next_token(s);
+                ret = parse_expr_dynamic(s, 0);
+                if(!ret) { printf("NULL at %d\n", __LINE__); return NULL; };
+
+                if (s->type != TOK_GROUP_CLOSE || s->group_close != expected_close) {
+                    s->type = TOK_ERROR;
+                } else {
+                    s->group_close = NULL;
+                    s->expecting_operator = 1;
+                    next_token(s);
+                }
+            } else {
+                /* No group registered for this opener — error */
+                s->type = TOK_ERROR;
             }
+            break;
+
+        case TOK_GROUP_CLOSE:
+        case TOK_CLOSE:
+            s->type = TOK_ERROR;
             break;
 
         default:
@@ -804,6 +878,7 @@ static inline double louro_evaluate(const LouroExpression *n) {
                 default: return NAN;
             }
 
+        /* CLOSURE evaluation — commented out, not used by any lib
         case LOURO_CLOSURE0: case LOURO_CLOSURE1: case LOURO_CLOSURE2: case LOURO_CLOSURE3:
         case LOURO_CLOSURE4: case LOURO_CLOSURE5: case LOURO_CLOSURE6: case LOURO_CLOSURE7:
         case LOURO_CLOSURE8: case LOURO_CLOSURE9: case LOURO_CLOSURE10: case LOURO_CLOSURE11:
@@ -872,6 +947,7 @@ static inline double louro_evaluate(const LouroExpression *n) {
                 }
                 default: return NAN;
             }
+        */
 
         default: return NAN;
     }
